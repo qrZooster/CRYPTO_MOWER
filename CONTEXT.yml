@@ -1,0 +1,45 @@
+# === QR Framework Context Manifest ===
+# Активируется командой /load qr
+
+name: QR Framework
+command: /load qr
+repository: https://github.com/qrZooster/CRYPTO_MOWER
+version: 0.1.0
+author: Учитель
+description: >
+  QR — лёгкий модульный фреймворк на Python для построения query-ориентированных систем.
+  Основная идея: каждая функция — это запрос (query) к данным, событиям или миру.
+  Фреймворк управляет реакциями (responses) и логикой (reason).
+
+structure:
+  docs:
+    - docs/CONTEXT.md
+    - docs/QR.md
+    - docs/QR_FORMAT.md
+  core:
+    - bb_db.py
+    - bb_sys.py
+    - bb_controls.py
+  chat:
+    - bb_tg.py
+  utils:
+    - bb_logger.py
+    - bb_lib.py
+  deprecated:
+    - del_bb_ws.py
+    - del_server.py
+
+load_instructions: |
+  When command "/load qr" is invoked:
+    1. Import all core modules (bb_db, bb_sys, bb_controls)
+    2. Initialize QR_Format and QR_Chat
+    3. Load documentation from /docs/
+    4. Bind repository context to chat session
+
+example_usage: |
+  /load qr
+  -> Initializes QR core
+  -> Links project context
+  -> Enables query-response functions
+
+license: MIT
