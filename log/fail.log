@@ -1,0 +1,306 @@
+
+💥 TConfig.do_set() FAILED
+📦 owner: Application
+⚙️ message: error: Session pool not initialized, call open() first
+
+🧩 Traceback (most recent calls):
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_controls.py", line 33, in control
+    self.fail("control", f"duplicate control {ctrl.Name}", ValueError)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 146, in fail
+    trace_limit = key_int("TRACE_LIMIT", 12)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 758, in key_int
+    return Application().Config.get_int(name, default)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 664, in Application
+    app.Session.open()
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 629, in open
+    result = self.do_open()
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 159, in do_open
+    self.fail('do_open', f'failed: {e}', e)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 146, in fail
+    trace_limit = key_int("TRACE_LIMIT", 12)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 758, in key_int
+    return Application().Config.get_int(name, default)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 533, in get_int
+    return int(self.get(name, default))
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 521, in get
+    self.do_set(name, default, text='auto-created by get()')
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 505, in do_set
+    self.fail('do_set', f'error: {e}', e)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 150, in fail
+    stack = "".join(traceback.format_stack(limit=trace_limit))
+
+--------------------------------------------------------------------------------
+
+💥 TConfig.do_set() FAILED
+📦 owner: Application
+⚙️ message: error: Session pool not initialized, call open() first
+
+🧩 Traceback (most recent calls):
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\tst_controls.py", line 33, in <module>
+    page.control(div_main)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_controls.py", line 33, in control
+    self.fail("control", f"duplicate control {ctrl.Name}", ValueError)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 146, in fail
+    trace_limit = key_int("TRACE_LIMIT", 12)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 758, in key_int
+    return Application().Config.get_int(name, default)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 664, in Application
+    app.Session.open()
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 629, in open
+    result = self.do_open()
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 159, in do_open
+    self.fail('do_open', f'failed: {e}', e)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 146, in fail
+    trace_limit = key_int("TRACE_LIMIT", 12)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 758, in key_int
+    return Application().Config.get_int(name, default)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 535, in get_int
+    self.do_set(name, default)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 505, in do_set
+    self.fail('do_set', f'error: {e}', e)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 150, in fail
+    stack = "".join(traceback.format_stack(limit=trace_limit))
+
+--------------------------------------------------------------------------------
+
+💥 TSession.do_open() FAILED
+📦 owner: Application
+⚙️ message: failed: 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:3307' (10061)
+
+🧩 Traceback (most recent calls):
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\tst_controls.py", line 33, in <module>
+    page.control(div_main)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_controls.py", line 33, in control
+    self.fail("control", f"duplicate control {ctrl.Name}", ValueError)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 146, in fail
+    trace_limit = key_int("TRACE_LIMIT", 12)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 758, in key_int
+    return Application().Config.get_int(name, default)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 664, in Application
+    app.Session.open()
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 629, in open
+    result = self.do_open()
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 159, in do_open
+    self.fail('do_open', f'failed: {e}', e)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 150, in fail
+    stack = "".join(traceback.format_stack(limit=trace_limit))
+
+--------------------------------------------------------------------------------
+
+💥 TPage.control() FAILED
+📦 owner: Application
+⚙️ message: duplicate control divMain
+
+🧩 Traceback (most recent calls):
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\tst_controls.py", line 33, in <module>
+    page.control(div_main)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_controls.py", line 33, in control
+    self.fail("control", f"duplicate control {ctrl.Name}", ValueError)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 150, in fail
+    stack = "".join(traceback.format_stack(limit=trace_limit))
+
+--------------------------------------------------------------------------------
+
+💥 TConfig.do_set() FAILED
+📦 owner: Application
+⚙️ message: error: Session pool not initialized, call open() first
+
+🧩 Traceback (most recent calls):
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_controls.py", line 33, in control
+    self.fail("control", f"duplicate control {ctrl.Name}", ValueError)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 146, in fail
+    trace_limit = key_int("TRACE_LIMIT", 12)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 758, in key_int
+    return Application().Config.get_int(name, default)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 664, in Application
+    app.Session.open()
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 629, in open
+    result = self.do_open()
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 159, in do_open
+    self.fail('do_open', f'failed: {e}', e)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 146, in fail
+    trace_limit = key_int("TRACE_LIMIT", 12)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 758, in key_int
+    return Application().Config.get_int(name, default)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 533, in get_int
+    return int(self.get(name, default))
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 521, in get
+    self.do_set(name, default, text='auto-created by get()')
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 505, in do_set
+    self.fail('do_set', f'error: {e}', e)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 150, in fail
+    stack = "".join(traceback.format_stack(limit=trace_limit))
+
+--------------------------------------------------------------------------------
+
+💥 TConfig.do_set() FAILED
+📦 owner: Application
+⚙️ message: error: Session pool not initialized, call open() first
+
+🧩 Traceback (most recent calls):
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\tst_controls.py", line 15, in <module>
+    page.control(div_main)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_controls.py", line 33, in control
+    self.fail("control", f"duplicate control {ctrl.Name}", ValueError)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 146, in fail
+    trace_limit = key_int("TRACE_LIMIT", 12)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 758, in key_int
+    return Application().Config.get_int(name, default)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 664, in Application
+    app.Session.open()
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 629, in open
+    result = self.do_open()
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 159, in do_open
+    self.fail('do_open', f'failed: {e}', e)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 146, in fail
+    trace_limit = key_int("TRACE_LIMIT", 12)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 758, in key_int
+    return Application().Config.get_int(name, default)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 535, in get_int
+    self.do_set(name, default)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 505, in do_set
+    self.fail('do_set', f'error: {e}', e)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 150, in fail
+    stack = "".join(traceback.format_stack(limit=trace_limit))
+
+--------------------------------------------------------------------------------
+
+💥 TSession.do_open() FAILED
+📦 owner: Application
+⚙️ message: failed: 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:3307' (10061)
+
+🧩 Traceback (most recent calls):
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\tst_controls.py", line 15, in <module>
+    page.control(div_main)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_controls.py", line 33, in control
+    self.fail("control", f"duplicate control {ctrl.Name}", ValueError)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 146, in fail
+    trace_limit = key_int("TRACE_LIMIT", 12)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 758, in key_int
+    return Application().Config.get_int(name, default)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 664, in Application
+    app.Session.open()
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 629, in open
+    result = self.do_open()
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 159, in do_open
+    self.fail('do_open', f'failed: {e}', e)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 150, in fail
+    stack = "".join(traceback.format_stack(limit=trace_limit))
+
+--------------------------------------------------------------------------------
+
+💥 TPage.control() FAILED
+📦 owner: Application
+⚙️ message: duplicate control divMain
+
+🧩 Traceback (most recent calls):
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\tst_controls.py", line 15, in <module>
+    page.control(div_main)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_controls.py", line 33, in control
+    self.fail("control", f"duplicate control {ctrl.Name}", ValueError)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 150, in fail
+    stack = "".join(traceback.format_stack(limit=trace_limit))
+
+--------------------------------------------------------------------------------
+
+💥 TConfig.do_set() FAILED
+📦 owner: Application
+⚙️ message: error: Session pool not initialized, call open() first
+
+🧩 Traceback (most recent calls):
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_controls.py", line 33, in control
+    self.fail("control", f"duplicate control {ctrl.Name}", ValueError)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 146, in fail
+    trace_limit = key_int("TRACE_LIMIT", 12)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 758, in key_int
+    return Application().Config.get_int(name, default)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 664, in Application
+    app.Session.open()
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 629, in open
+    result = self.do_open()
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 159, in do_open
+    self.fail('do_open', f'failed: {e}', e)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 146, in fail
+    trace_limit = key_int("TRACE_LIMIT", 12)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 758, in key_int
+    return Application().Config.get_int(name, default)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 533, in get_int
+    return int(self.get(name, default))
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 521, in get
+    self.do_set(name, default, text='auto-created by get()')
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 505, in do_set
+    self.fail('do_set', f'error: {e}', e)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 150, in fail
+    stack = "".join(traceback.format_stack(limit=trace_limit))
+
+--------------------------------------------------------------------------------
+
+💥 TConfig.do_set() FAILED
+📦 owner: Application
+⚙️ message: error: Session pool not initialized, call open() first
+
+🧩 Traceback (most recent calls):
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\tst_controls.py", line 21, in <module>
+    page.control(div_main)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_controls.py", line 33, in control
+    self.fail("control", f"duplicate control {ctrl.Name}", ValueError)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 146, in fail
+    trace_limit = key_int("TRACE_LIMIT", 12)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 758, in key_int
+    return Application().Config.get_int(name, default)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 664, in Application
+    app.Session.open()
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 629, in open
+    result = self.do_open()
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 159, in do_open
+    self.fail('do_open', f'failed: {e}', e)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 146, in fail
+    trace_limit = key_int("TRACE_LIMIT", 12)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 758, in key_int
+    return Application().Config.get_int(name, default)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 535, in get_int
+    self.do_set(name, default)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 505, in do_set
+    self.fail('do_set', f'error: {e}', e)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 150, in fail
+    stack = "".join(traceback.format_stack(limit=trace_limit))
+
+--------------------------------------------------------------------------------
+
+💥 TSession.do_open() FAILED
+📦 owner: Application
+⚙️ message: failed: 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:3307' (10061)
+
+🧩 Traceback (most recent calls):
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\tst_controls.py", line 21, in <module>
+    page.control(div_main)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_controls.py", line 33, in control
+    self.fail("control", f"duplicate control {ctrl.Name}", ValueError)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 146, in fail
+    trace_limit = key_int("TRACE_LIMIT", 12)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 758, in key_int
+    return Application().Config.get_int(name, default)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 664, in Application
+    app.Session.open()
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 629, in open
+    result = self.do_open()
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_db.py", line 159, in do_open
+    self.fail('do_open', f'failed: {e}', e)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 150, in fail
+    stack = "".join(traceback.format_stack(limit=trace_limit))
+
+--------------------------------------------------------------------------------
+
+💥 TPage.control() FAILED
+📦 owner: Application
+⚙️ message: duplicate control divMain
+
+🧩 Traceback (most recent calls):
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\tst_controls.py", line 21, in <module>
+    page.control(div_main)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_controls.py", line 33, in control
+    self.fail("control", f"duplicate control {ctrl.Name}", ValueError)
+  File "D:\PHYTON\TRADE\CRYPTO_MOWER\bb_sys.py", line 150, in fail
+    stack = "".join(traceback.format_stack(limit=trace_limit))
+
+--------------------------------------------------------------------------------

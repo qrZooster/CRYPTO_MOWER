@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Realtime Logs — bbscan.service</title>
+<style>
+body {
+  background: #111;
+  color: #0f0;
+  font-family: monospace;
+  margin: 20px;
+}
+#status {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+  background: red;
+}
+#log {
+  white-space: pre-wrap;
+  height: 80vh;
+  overflow-y: auto;
+  border: 1px solid #333;
+  padding: 8px;
+  background: #000;
+}
+button {
+  margin: 8px 0;
+  padding: 4px 10px;
+  background: #222;
+  color: #0f0;
+  border: 1px solid #333;
+  cursor: pointer;
+}
+button:hover {
+  background: #333;
+}
+</style>
+</head>
+<body>
+<h2><span id="status"></span>bbscan.service — realtime log</h2>
+<button id="restart">Restart service</button>
+<div id="log"></div>
+
+<script>
+let ws;
+let reconnectTimer = null;
+
+function setStatus(color) {
+  document.getElementById("status").style.background = color;
+}
+
+function connect() {
+  ws = new WebSocket("ws://" + location.hostname + ":8081");
+
+  ws.onopen = () => {
+    console.log("[open]");
+    setStatus("lime");
+  };
+
+  ws.onmessage = e => {
+    try {
+      const d = JSON.parse(e.data);
+      if (d.type === "log") {
+        const el = document.getElementById("log");
+        el.textContent += d.text + "\n";
+        el.scrollTop = el.scrollHeight;
+      } else if (d.type === "info") {
+        alert(d.msg);
+      } else if (d.type === "hello") {
+        console.log("[hello]", d.msg);
+      }
+    } catch (err) {
+      console.error("Bad message:", e.data);
+    }
+  };
+
+  ws.onclose = () => {
+    console.log("[close] reconnecting...");
+    setStatus("red");
+    if (!reconnectTimer) {
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        connect();
+      }, 2000);
+    }
+  };
+
+  ws.onerror = (e) => {
+    console.error("[error]", e);
+    ws.close();
+  };
+}
+
+connect();
+
+document.getElementById("restart").onclick = () => {
+  if (ws && ws.readyState === WebSocket.OPEN)
+    ws.send(JSON.stringify({ cmd: "restart" }));
+  else
+    alert("WebSocket not connected");
+};
+</script>
+</body>
+</html>
