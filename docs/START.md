@@ -1,0 +1,16 @@
+# 🚀 QR Framework — Context Loader
+
+Load the full QR Framework project context in the correct order.
+
+## 🧠 Active chat mode
+Use strict communication rules from QR_Chat.md (no flood, concise, structured answers).
+
+## 🗂️ Load these documents in order:
+1. [QR_Chat.md](https://raw.githubusercontent.com/qrZooster/CRYPTO_MOWER/main/docs/QR_Chat.md)
+2. [CONTEXT.md](https://raw.githubusercontent.com/qrZooster/CRYPTO_MOWER/main/docs/CONTEXT.md)
+3. [QR.md](https://raw.githubusercontent.com/qrZooster/CRYPTO_MOWER/main/docs/QR.md)
+4. [QR_FORMAT.md](https://raw.githubusercontent.com/qrZooster/CRYPTO_MOWER/main/docs/QR_FORMAT.md)
+
+---
+
+### ✅ Command for ChatGPT:
