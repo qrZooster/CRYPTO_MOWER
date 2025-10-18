@@ -14,3 +14,7 @@ Use strict communication rules from QR_Chat.md (no flood, concise, structured an
 ---
 
 ### ✅ Command for ChatGPT:
+
+### 🚀 Quick Load Command
+Copy and paste this block in a new chat to load everything automatically:
+
