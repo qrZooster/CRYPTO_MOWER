@@ -14,6 +14,20 @@ DOCS_DIR = Path(__file__).parent / "docs"
 SRC_DIR = Path(__file__).parent / "src"
 OUTPUT = Path(__file__).parent / "START.json"
 
+CORE_FILES = [
+    "bb_sys.py",
+    "bb_db.py",
+    "bb_controls.py",
+    "bb_logger.py",
+    "bb_events.py",
+]
+WORK_FILES = [
+    "qr_watcher_v2.py",
+    "qr_loader.py",
+    "test_app.py",
+    "main.py",
+]
+
 
 # --- Игнорируемые файлы и каталоги ---
 IGNORE_LIST = [
@@ -63,7 +77,7 @@ def convert_links(text: str):
 
 # --- Основная сборка ---
 def build_start_json():
-    docs, code = [], []
+    docs, core, work, code = [], [], [], []
     total_lines = total_bytes = 0
 
     # --- Документация ---
@@ -86,18 +100,37 @@ def build_start_json():
 
     # --- Код ---
     search_dir = SRC_DIR if SRC_DIR.exists() else Path(__file__).parent
+
     for file in search_dir.glob("*.py"):
         if should_ignore(file):
             continue
+
         content, lines, bytes_, updated = get_file_stats(file)
-        code.append({
-            "name": file.name,
-            "dir": f"/src" if SRC_DIR.exists() else "/",
+
+        # --- Классификация файлов ---
+        name = file.name
+        if name in CORE_FILES:
+            target = core
+            dir_tag = "/core"
+        elif name in WORK_FILES:
+            target = work
+            dir_tag = "/work"
+        else:
+            # всё остальное идёт в общий src, если не попадает в список
+            target = code
+            dir_tag = "/src" if SRC_DIR.exists() else "/"
+
+        # --- Добавление данных ---
+        target.append({
+            "name": name,
+            "dir": dir_tag,
             "lines": lines,
             "bytes": bytes_,
             "updated": updated,
             "content": content
         })
+
+        # --- Общая статистика ---
         total_lines += lines
         total_bytes += bytes_
 
@@ -113,12 +146,15 @@ def build_start_json():
         "code": code
     }
 
-    OUTPUT.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    write_json("START", docs)
+    write_json("START_CORE", core)
+    write_json("START_WORK", work)
 
+    # Итоговая статистика
+    total_files = len(docs) + len(core) + len(work)
     mb = total_bytes / 1024 / 1024
-    print(f"[QR_Watcher] START.json обновлён ({len(docs)+len(code)} файлов, {mb:.2f} MB, {total_lines} строк)")
-    for f in sorted(docs + code, key=lambda x: x["bytes"], reverse=True)[:3]:
-        print(f"  • {f['name']:<15} — {f['lines']} строк, {f['bytes']/1024:.1f} KB")
+    print(f"[QR_Watcher] Всего файлов: {total_files} ({mb:.2f} MB, {total_lines} строк)")
+    print("[QR_Watcher] Разделение завершено — START / CORE / WORK ⚔️")
     summarize_by_dir(docs + code)
 
 
@@ -154,6 +190,31 @@ def summarize_by_dir(filesets):
     for k, v in sorted(stats.items()):
         kb = v["bytes"] / 1024
         print(f"  {k:<15} — {v['count']} файлов, {v['lines']} строк, {kb:.1f} KB")
+
+# --- Универсальная функция записи JSON ---
+def write_json(name: str, files: list):
+    """Сохраняет список файлов в отдельный JSON."""
+    if not files:
+        print(f"[QR_Watcher] {name}.json — нет данных, пропущено.")
+        return
+
+    data = {
+        "meta": {
+            "project": "CRYPTO_MOWER",
+            "part": name,
+            "updated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "files_count": len(files),
+        },
+        "files": files,
+    }
+
+    # создаём путь docs/CORE.json, docs/START.json, docs/WORK.json
+    output_path = Path("docs") / f"{name}.json"
+    output_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    mb = sum(f["bytes"] for f in files) / 1024 / 1024
+    lines = sum(f["lines"] for f in files)
+    print(f"[QR_Watcher] {name}.json обновлён ({len(files)} файлов, {mb:.2f} MB, {lines} строк)")
 
 
 # --- Запуск ---
