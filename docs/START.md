@@ -10,7 +10,7 @@ Use strict communication rules from QR_Chat.md (no flood, concise, structured an
 2. [CONTEXT.md](https://raw.githubusercontent.com/qrZooster/CRYPTO_MOWER/main/docs/CONTEXT.md)
 3. [STRUCTURE.md](https://raw.githubusercontent.com/qrZooster/CRYPTO_MOWER/main/docs/STRUCTURE.md)
 3. [QR.md](https://raw.githubusercontent.com/qrZooster/CRYPTO_MOWER/main/docs/QR.md)
-4. [QR_Format.md](https://raw.githubusercontent.com/qrZooster/CRYPTO_MOWER/main/docs/QR_FORMAT.md)
+4. [QR_Format.md](https://raw.githubusercontent.com/qrZooster/CRYPTO_MOWER/main/docs/QR_Format.md)
 
 ---
 
