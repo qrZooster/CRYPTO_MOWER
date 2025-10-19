@@ -2,8 +2,14 @@
   "meta": {
     "project": "CRYPTO_MOWER",
     "part": "START",
-    "updated": "2025-10-19T08:35:40Z",
-    "files_count": 9
+    "updated": "2025-10-19T09:29:15Z",
+    "files_count": 9,
+    "partial": true,
+    "note": "Этот файл содержит только документацию. Для полного анализа необходимо подгрузить START_CORE.json и START_WORK.json.",
+    "next_parts": [
+      "START_CORE.json",
+      "START_WORK.json"
+    ]
   },
   "files": [
     {

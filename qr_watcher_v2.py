@@ -20,14 +20,18 @@ CORE_FILES = [
     "bb_controls.py",
     "bb_logger.py",
     "bb_events.py",
-]
-WORK_FILES = [
-    "qr_watcher_v2.py",
-    "qr_loader.py",
-    "test_app.py",
-    "main.py",
+    "bb_utils.py",
+    "bb_tg.py",
+    "bb_ws.py",
+    "_bb_ws.py",
 ]
 
+WORK_FILES = [
+    "qr_watcher_v2.py",
+    "bb_scan_9.py",
+    "bb_app_sys_control.py",
+    "tst_controls.py",
+]
 
 # --- Игнорируемые файлы и каталоги ---
 IGNORE_LIST = [
@@ -37,8 +41,6 @@ IGNORE_LIST = [
     ".idea",
     "log",
     "START.json",
-    "qr_watcher_v2.py",
-    "qr_watcher_v3.py",
     "*.log",
     "*.tmp",
     "*.bak",
@@ -207,7 +209,17 @@ def write_json(name: str, files: list):
         },
         "files": files,
     }
+    # --- 🔸 ДОБАВЛЯЕМ СПЕЦИАЛЬНЫЙ ФЛАГ ДЛЯ START ---
+    #--- Ult afqk---???
+    if name == "START":
+        data["meta"]["partial"] = True
+        data["meta"]["note"] = (
+            "Этот файл содержит только документацию. "
+            "Для полного анализа необходимо подгрузить START_CORE.json и START_WORK.json."
+        )
+        data["meta"]["next_parts"] = ["START_CORE.json", "START_WORK.json"]
 
+    # --- Сохраняем файл ---
     # создаём путь docs/CORE.json, docs/START.json, docs/WORK.json
     output_path = Path("docs") / f"{name}.json"
     output_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
