@@ -30,7 +30,7 @@ CORE_FILES = [
 
 WORK_FILES = [
     "qr_watcher_v3.py", "bb_scan_9.py", "bb_app_sys_control.py",
-    "del_tst_controls.py"
+    "tst_controls.py"
 ]
 
 # Хэш конфигурации списков файлов
