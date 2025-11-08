@@ -1,0 +1,94 @@
+/* ============================================================================
+   Tradition Core — debug helpers
+   File: bb_tc_dbg.css
+   Prefix: tc-dbg-
+   NOTE: подключай ТОЛЬКО в debug_mode
+   ========================================================================== */
+/* Frame & badge scaffolding */
+.tc-dbg-frame{
+  position:relative;
+  border-width:1px !important;
+  border-style:dashed !important;
+}
+.tc-dbg-badge{
+  position:absolute;
+  top:-2px; left:-2px;
+  font-size:13px; line-height:1.2; font-weight:bold;
+  font-family:monospace;
+  padding:2px 4px; border-radius:6px; z-index:9999;
+  color:#000; pointer-events:none;
+  border-width:1px; border-style:solid;
+}
+
+/* === Palettes ============================================================= */
+/* frame (border) shades 0..3 + badge background/border (без индекса) */
+
+/* red */
+.tc-dbg-f-red-0{border-color:rgba(255,0,0,0.15);}
+.tc-dbg-f-red-1{border-color:rgba(255,0,0,0.30);}
+.tc-dbg-f-red-2{border-color:rgba(255,0,0,0.60);}
+.tc-dbg-f-red-3{border-color:rgba(255,0,0,0.90);}
+.tc-dbg-b-red{background:rgba(255,0,0,0.15);border-color:rgba(255,0,0,0.30);}
+
+/* maroon */
+.tc-dbg-f-maroon-0{border-color:rgba(128,0,32,0.15);}
+.tc-dbg-f-maroon-1{border-color:rgba(128,0,32,0.30);}
+.tc-dbg-f-maroon-2{border-color:rgba(128,0,32,0.60);}
+.tc-dbg-f-maroon-3{border-color:rgba(128,0,32,0.90);}
+.tc-dbg-b-maroon{background:rgba(128,0,32,0.15);border-color:rgba(128,0,32,0.30);}
+
+/* fuchsia */
+.tc-dbg-f-fuchsia-0{border-color:rgba(255,0,255,0.15);}
+.tc-dbg-f-fuchsia-1{border-color:rgba(255,0,255,0.30);}
+.tc-dbg-f-fuchsia-2{border-color:rgba(255,0,255,0.60);}
+.tc-dbg-f-fuchsia-3{border-color:rgba(255,0,255,0.90);}
+.tc-dbg-b-fuchsia{background:rgba(255,0,255,0.15);border-color:rgba(255,0,255,0.30);}
+
+/* purple */
+.tc-dbg-f-purple-0{border-color:rgba(180,0,255,0.15);}
+.tc-dbg-f-purple-1{border-color:rgba(180,0,255,0.30);}
+.tc-dbg-f-purple-2{border-color:rgba(180,0,255,0.60);}
+.tc-dbg-f-purple-3{border-color:rgba(180,0,255,0.90);}
+.tc-dbg-b-purple{background:rgba(180,0,255,0.15);border-color:rgba(180,0,255,0.30);}
+
+/* olive */
+.tc-dbg-f-olive-0{border-color:rgba(128,128,0,0.15);}
+.tc-dbg-f-olive-1{border-color:rgba(128,128,0,0.30);}
+.tc-dbg-f-olive-2{border-color:rgba(128,128,0,0.60);}
+.tc-dbg-f-olive-3{border-color:rgba(128,128,0,0.90);}
+.tc-dbg-b-olive{background:rgba(128,128,0,0.15);border-color:rgba(128,128,0,0.30);}
+
+/* green */
+.tc-dbg-f-green-0{border-color:rgba(0,200,0,0.15);}
+.tc-dbg-f-green-1{border-color:rgba(0,200,0,0.30);}
+.tc-dbg-f-green-2{border-color:rgba(0,200,0,0.60);}
+.tc-dbg-f-green-3{border-color:rgba(0,200,0,0.90);}
+.tc-dbg-b-green{background:rgba(0,200,0,0.15);border-color:rgba(0,200,0,0.30);}
+
+/* teal */
+.tc-dbg-f-teal-0{border-color:rgba(0,128,128,0.15);}
+.tc-dbg-f-teal-1{border-color:rgba(0,128,128,0.30);}
+.tc-dbg-f-teal-2{border-color:rgba(0,128,128,0.60);}
+.tc-dbg-f-teal-3{border-color:rgba(0,128,128,0.90);}
+.tc-dbg-b-teal{background:rgba(0,128,128,0.15);border-color:rgba(0,128,128,0.30);}
+
+/* blue */
+.tc-dbg-f-blue-0{border-color:rgba(0,100,255,0.15);}
+.tc-dbg-f-blue-1{border-color:rgba(0,100,255,0.30);}
+.tc-dbg-f-blue-2{border-color:rgba(0,100,255,0.60);}
+.tc-dbg-f-blue-3{border-color:rgba(0,100,255,0.90);}
+.tc-dbg-b-blue{background:rgba(0,100,255,0.15);border-color:rgba(0,100,255,0.30);}
+
+/* aqua */
+.tc-dbg-f-aqua-0{border-color:rgba(0,170,255,0.15);}
+.tc-dbg-f-aqua-1{border-color:rgba(0,170,255,0.30);}
+.tc-dbg-f-aqua-2{border-color:rgba(0,170,255,0.60);}
+.tc-dbg-f-aqua-3{border-color:rgba(0,170,255,0.90);}
+.tc-dbg-b-aqua{background:rgba(0,170,255,0.15);border-color:rgba(0,170,255,0.30);}
+
+/* gray (reserved/system) */
+.tc-dbg-f-gray-0{border-color:rgba(80,80,80,0.15);}
+.tc-dbg-f-gray-1{border-color:rgba(80,80,80,0.30);}
+.tc-dbg-f-gray-2{border-color:rgba(80,80,80,0.60);}
+.tc-dbg-f-gray-3{border-color:rgba(80,80,80,0.90);}
+.tc-dbg-b-gray{background:rgba(80,80,80,0.15);border-color:rgba(80,80,80,0.30);}

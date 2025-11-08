@@ -1,0 +1,73 @@
+/* ============================================================================
+   Tradition Core — base utilities (PROD)
+   File: bb_tc.css
+   Prefix: tc-
+   ========================================================================== */
+
+:root{
+  --tc-gap-1:.25rem;
+  --tc-gap-2:.5rem;
+  --tc-gap-3:1rem;
+  --tc-radius:.5rem;
+}
+
+/* Sizing */
+.tc-w-100{width:100%;}
+.tc-h-100{height:100%;}
+.tc-100{width:100%;height:100%;}
+
+/* Flex helpers */
+.tc-flex{display:flex;}
+.tc-row{display:flex;flex-direction:row;}
+.tc-col{display:flex;flex-direction:column;}
+.tc-wrap{flex-wrap:wrap;}
+.tc-nowrap{flex-wrap:nowrap;}
+.tc-grow{flex:1 1 0;}
+.tc-center{align-items:center;justify-content:center;}
+.tc-align-start{align-items:flex-start;}
+.tc-align-center{align-items:center;}
+.tc-justify-start{justify-content:flex-start;}
+.tc-justify-end{justify-content:flex-end;}
+.tc-justify-between{justify-content:space-between;}
+.tc-gap-1{gap:var(--tc-gap-1);}
+.tc-gap-2{gap:var(--tc-gap-2);}
+.tc-gap-3{gap:var(--tc-gap-3);}
+
+/* Spacing */
+.tc-p-1{padding:.25rem;}
+.tc-p-2{padding:.5rem;}
+.tc-p-3{padding:1rem;}
+.tc-m-0{margin:0;}
+.tc-m-1{margin:.25rem;}
+.tc-m-2{margin:.5rem;}
+
+/* Typography */
+.tc-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+.tc-small{font-size:.875rem;}
+.tc-muted{opacity:.7;}
+
+/* Controls */
+.tc-label{display:inline-block;}
+.tc-icon{display:inline-flex;align-items:center;justify-content:center;line-height:1;}
+.tc-icon-text{font-weight:600;}
+
+/* Corners & shadows */
+.tc-rounded{border-radius:var(--tc-radius);}
+.tc-shadow{box-shadow:0 1px 2px rgba(0,0,0,.06),0 4px 12px rgba(0,0,0,.06);}
+
+.avatar img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    overflow-y: scroll;  /* вертикальный скролл всегда зарезервирован */
+}

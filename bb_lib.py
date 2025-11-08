@@ -5,7 +5,7 @@
 import requests
 from collections import deque, defaultdict
 from bb_db import *
-from bb_vars import *
+from bb_sys import *
 
 MARKET_FILTER_QUOTE = USDT
 
