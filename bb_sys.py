@@ -104,7 +104,7 @@ TRACEBACK_ENABLED = True
 MSK = dt.timezone(dt.timedelta(hours=3), name='MSK')
 # 💎🧩⚙️ ... __ALL__ ...
 __all__ = [
-    'TObject', 'TOwnerObject', 'TComponent', 'TLiveComponent',
+    'TOwnerObject', 'TComponent', 'TLiveComponent',
     'TSysComponent', 'TModule',
     'set_env_mapping',
     '_s', '_set_key', '_key', 'explode',
@@ -115,97 +115,6 @@ __all__ = [
     'BYBIT', 'PERP', 'USDT', 'BUY', 'SELL',
     'USDT_PAIR_RE', 'USDT_SLASH_RE',
 ]
-# ----------------------------------------------------------------------------------------------------------------------
-# 🧩 TObject — базовый класс
-# ----------------------------------------------------------------------------------------------------------------------
-class TObject:
-    def __init__(self, name: str = None):
-        cname = self.__class__.__name__
-        if cname[:1].lower() == 't':
-            cname = cname[1:]
-        self.Name = name if name else cname
-        # В TObject нет Owner — он появляется в TComponent
-
-    # --- Совместимость старого доступа name ---
-    @property
-    def name(self) -> str:
-        return self.Name
-    @name.setter
-    def name(self, v: str):
-        self.Name = v
-
-    def log(self, function: str, *parts, window: int = 1):
-        """
-        Базовый логгер:
-        1) пишет в TLogRouter / консоль,
-        2) параллельно пытается отправить строку в браузер через ws_push_log().
-        """
-        from datetime import datetime
-        from bb_logger import LOG_ROUTER
-        from bb_sys import _key
-
-        project_symbol = _key('PROJECT_SYMBOL', 'BB')
-        project_version = _key('PROJECT_VERSION', '3')
-        now = datetime.now().strftime('%H:%M:%S')
-        msg = ' '.join(str(p) for p in parts)
-        text = f'[{project_symbol}_{project_version}][{now}][{self.Name}]{function}(): {msg}'
-
-        # 1) Терминал / Rich-консоль
-        try:
-            if LOG_ROUTER:
-                LOG_ROUTER.write(text, window=window)
-            else:
-                print(text, flush=True)
-        except Exception:
-            print(text, flush=True)
-
-        # 2) Браузер (WebSocket) — ищем вверх по Owner того, у кого есть ws_push_log()
-        try:
-            app = None
-            cur = self
-            depth = 0
-
-            # поднимаемся по цепочке Owner максимум 20 шагов
-            while cur is not None and depth < 20:
-                if hasattr(cur, "ws_push_log"):
-                    app = cur
-                    break
-                cur = getattr(cur, "Owner", None)
-                depth += 1
-
-            if app:
-                # здесь сработает твой TApplication.ws_push_log(...)
-                app.ws_push_log(text)
-
-        except Exception:
-            # логгер не должен ронять систему
-            pass
-
-    def fail(self, function: str, msg: str, exc_type: type = Exception):
-        from bb_db import key_int
-        try:
-            trace_limit = key_int("TRACE_LIMIT", 12)
-        except Exception:
-            trace_limit = 12
-
-        stack = "".join(traceback.format_stack(limit=trace_limit))
-        cls_name = self.__class__.__name__
-        owner_name = getattr(getattr(self, "Owner", None), "Name", None)
-        owner_part = f"\n📦 owner: {owner_name}" if owner_name else ""
-        text = (f"\n💥 {cls_name}.{function}() FAILED{owner_part}\n⚙️ message: {msg}"
-                f"\n\n🧩 Traceback (most recent calls):\n{stack}")
-        try:
-            self.log("fail", msg)
-        except Exception:
-            print(f"[{cls_name}] fail(): {msg}")
-        try:
-            os.makedirs("log", exist_ok=True)
-            with open("log/fail.log", "a", encoding="utf-8") as f:
-                f.write(f"{text}\n{'-'*80}\n")
-        except Exception:
-            pass
-        print(text, flush=True)
-        raise exc_type(f"{cls_name}.{function}(): {msg}")
 # ----------------------------------------------------------------------------------------------------------------------
 # 🧩 TOwnerObject — иерархия владения, регистрация и логика родословной
 # ----------------------------------------------------------------------------------------------------------------------
@@ -414,12 +323,52 @@ class TOwnerObject:
     # ..................................................................................................................
     # 📡 Log / Debug / Fail
     # ..................................................................................................................
-    def log(self, func: str, msg: str):
+    def log(self, function: str, *parts, window: int = 1):
         """
-        Простой логгер уровня TOwnerObject. Используется для обычных статусов жизненного цикла (создано, удалено, подписано и т.д.).
+        Базовый логгер для всех owner-компонентов:
+        1) пишет в TLogRouter / консоль,
+        2) параллельно пытается отправить строку в браузер через ws_push_log().
         """
-        now = datetime.now().strftime("%H:%M:%S")
-        print(f"[{now}][{self.Name}].{func}(): {msg}", flush=True)
+        from datetime import datetime
+        from bb_logger import LOG_ROUTER
+        from bb_sys import _key
+
+        project_symbol = _key('PROJECT_SYMBOL', 'BB')
+        project_version = _key('PROJECT_VERSION', '3')
+        now = datetime.now().strftime('%H:%M:%S')
+        msg = ' '.join(str(p) for p in parts)
+        text = f'[{project_symbol}_{project_version}][{now}][{self.Name}]{function}(): {msg}'
+
+        # 1) Терминал / Rich-консоль
+        try:
+            if LOG_ROUTER:
+                LOG_ROUTER.write(text, window=window)
+            else:
+                print(text, flush=True)
+        except Exception:
+            print(text, flush=True)
+
+        # 2) Браузер (WebSocket) — ищем вверх по Owner того, у кого есть ws_push_log()
+        try:
+            app = None
+            cur = self
+            depth = 0
+
+            # поднимаемся по цепочке Owner максимум 20 шагов
+            while cur is not None and depth < 20:
+                if hasattr(cur, "ws_push_log"):
+                    app = cur
+                    break
+                cur = getattr(cur, "Owner", None)
+                depth += 1
+
+            if app:
+                # здесь сработает твой TApplication.ws_push_log(...)
+                app.ws_push_log(text)
+
+        except Exception:
+            # логгер не должен ронять систему
+            pass
     # ---
     def debug(self, func: str, *parts):
         """
@@ -432,13 +381,42 @@ class TOwnerObject:
         text = f"🔍 [DEBUG][{self.__class__.__name__}.{func}] {msg}"
         print(text, flush=True)
     # ---
-    def fail(self, func: str, msg: str, exc_type: type = Exception):
+    def fail(self, function: str, msg: str, exc_type: type = Exception):
         """
-        Аварийный выход. Печатает сообщение в stdout и бросает исключение exc_type с расшифровкой кто упал и почему.
+        Аварийный выход с логированием стека в файл log/fail.log.
         """
-        text = f"💥 {self.__class__.__name__}.{func}() FAILED: {msg}"
+        from bb_db import key_int
+
+        try:
+            trace_limit = key_int("TRACE_LIMIT", 12)
+        except Exception:
+            trace_limit = 12
+
+        stack = "".join(traceback.format_stack(limit=trace_limit))
+        cls_name = self.__class__.__name__
+        owner_name = getattr(getattr(self, "Owner", None), "Name", None)
+        owner_part = f"\n📦 owner: {owner_name}" if owner_name else ""
+        text = (
+            f"\n💥 {cls_name}.{function}() FAILED{owner_part}\n⚙️ message: {msg}"
+            f"\n\n🧩 Traceback (most recent calls):\n{stack}"
+        )
+
+        # пытаемся залогировать через общий лог
+        try:
+            self.log("fail", msg)
+        except Exception:
+            print(f"[{cls_name}] fail(): {msg}")
+
+        # пишем в файл
+        try:
+            os.makedirs("log", exist_ok=True)
+            with open("log/fail.log", "a", encoding="utf-8") as f:
+                f.write(f"{text}\n{'-' * 80}\n")
+        except Exception:
+            pass
+
         print(text, flush=True)
-        raise exc_type(text)
+        raise exc_type(f"{cls_name}.{function}(): {msg}")
     # ..................................................................................................................
     # ♻️ Уничтожение
     # ..................................................................................................................
@@ -470,6 +448,10 @@ class TOwnerObject:
             self.fail("remove", f"Component not found: {child.Name}", KeyError)
         del self.Components[child.Name]
         self.log("remove", f"{child.Name} removed")
+# ----------------------------------------------------------------------------------------------------------------------
+# 🧩 TObject — базовый класс - Alias
+# ----------------------------------------------------------------------------------------------------------------------
+TObject = TOwnerObject
 # ----------------------------------------------------------------------------------------------------------------------
 # 🧩 TComponent — базовый компонент Tradition Core
 # ----------------------------------------------------------------------------------------------------------------------
