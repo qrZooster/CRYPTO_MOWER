@@ -15,7 +15,7 @@ from bb_ctrl_custom import *
 from bb_ctrl_mixin import *
 from datetime import datetime
 # 💎🧩⚙️ ... __ALL__ ...
-__all__ = ["TGrid", "TPanel", "TCard", "TMenu"]
+__all__ = ["TGrid", "TPanel", "TCard", "TMenu", "TMonitor"]
 # ----------------------------------------------------------------------------------------------------------------------
 # 🧩 TGrid — каркас страницы / секции (flex-column из строк)
 # ----------------------------------------------------------------------------------------------------------------------
@@ -855,6 +855,62 @@ class TMenuItem(TCompositeControl, TLinkMixin, TCaptionMixin, TIconMixin):
 
         # </li>
         self.etg("li")
+# ----------------------------------------------------------------------------------------------------------------------
+# 🧩 TMonitor
+# ----------------------------------------------------------------------------------------------------------------------
+class TMonitor(TCustomControl, TwsSubscriberMixin):
+    prefix = "monitor"
+    MARK_FAMILY = "_SINGLE_"
+    MARK_LEVEL = 0
+    """
+    Простой монитор логов:
+    - корень: <div class="tc-monitor ...">
+    - внутри: <pre class="tc-monitor-body" ...> — точка привязки к WS
+    По умолчанию подписан на канал "log", type="log_line".
+    """
+    def __init__(self, Owner: TOwnerObject | None = None, Name: str | None = None):
+        super().__init__(Owner, Name)
+
+        # WS-подписка по умолчанию
+        self.channel = "log"
+        self.type = "log_line"
+
+        # режим работы монитора (для фронта)
+        self.mode: str = "append"   # "append" | "replace" (сейчас используем append)
+        self.max_lines: int = 500   # лимит строк в <pre>, фронт сам обрежет
+
+        # базовые классы оформления (без навязывания цветов)
+        self.add_class("tc-monitor")
+        self.add_class("p-2")
+        self.add_class("font-monospace")
+
+        self.log("__init__", f"monitor {self.Name} created")
+
+    def render(self):
+        """
+        Рисуем внутренний <pre>, который будет получать данные по WebSocket.
+        Все data-* атрибуты используются только фронтендом.
+        """
+        # собираем data-* атрибуты для привязки
+        attr_parts: list[str] = []
+
+        # из миксина TwsSubscriberMixin: data-tws-channel / data-tws-type
+        if hasattr(self, "get_tws_attrs"):
+            tws_attrs = (self.get_tws_attrs() or "").strip()
+            if tws_attrs:
+                attr_parts.append(tws_attrs)
+
+        # режим работы и лимит строк — чисто фронтовые параметры
+        attr_parts.append(f"data-tws-mode='{self.mode}'")
+        attr_parts.append(f"data-tws-max='{int(self.max_lines)}'")
+
+        attr_str = " ".join(attr_parts).strip() or None
+
+        # корень уже открыт в _render() (div.monitor),
+        # здесь рисуем только <pre> как тело монитора
+        self.tg("pre", cls="tc-monitor-body", attr=attr_str)
+        # стартовое содержимое оставляем пустым — всё придёт из WS
+        self.etg("pre")
 # ======================================================================================================================
 # 📁🌄 bb_ctrl_base.py 🜂 The End — See You Next Session 2025 💹 188 -> 1755 -> 2088 -> 775 -> 979 -> 851
 # ======================================================================================================================
