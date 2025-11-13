@@ -40,13 +40,6 @@ class TAtomControl(TStyleMixin, TCustomControl):
     Пример: Label, Icon, Button, Badge...
     Он живёт внутри ячейки/панели, но сам никого не содержит.
     """
-    def __init__(self, Owner=None, Name: str | None = None):
-        super().__init__(Owner, Name)
-        self.f_size = "md"             # 'xs'|'sm'|'md'|'lg'|'xl'
-        self.f_kind = None             # внутренняя форма kind
-        self.f_caption = None          # сразу под caption, см. TCaptionMixin
-        self.f_style = ""              # сырое значение style ("pill ghost" и т.п.)
-
     def add_control(self, ctrl: "TCustomControl"):
         """
         Если кто-то попытается впихнуть детей в атом — это ошибка дизайна.
@@ -154,18 +147,9 @@ class TAtomControl(TStyleMixin, TCustomControl):
 # ----------------------------------------------------------------------------------------------------------------------
 class TLabel(TCaptionMixin, TAtomControl):
     prefix = "lbl"
-    # ⚡🛠️ ▸ __init__
-    def __init__(self, Owner: TOwnerObject | None = None, Name: str | None = None):
-        """
-        Текстовая метка. Может быть обычной подписью (span) или заголовком (h1..h6) через self.h.
-        По умолчанию выводит собственное имя (self.Name), так что можно не задавать текст вручную.
-        """
-        super().__init__(Owner, Name)
-        # --- Контент метки ---
+    # ⚡🛠️ ▸ do_init()
+    def do_init(self):
         self.h: int = 0
-        # ... 🔊 ...
-        self.log("__init__", f"⚙️ label {self.Name} created")
-        # ⚡🛠️ TLabel ▸ End of __init__
     # ..................................................................................................................
     # 🎨 Рендеринг
     # ..................................................................................................................
@@ -190,24 +174,11 @@ class TIcon(TIconMixin, TAtomControl):
         "lg": 20,
         "xl": 24,
     }
-    # ⚡🛠️ ▸ __init__
-    def __init__(self, Owner: TOwnerObject | None = None, Name: str | None = None):
-        """
-        Визуальный маркер. Может быть эмодзи, inline SVG (например иконка Tabler) или URL фавиконки/картинки.
-        Управляется свойствами:
-        - self.icon  → строка-источник (🌐 или '<svg ...>' или 'https://site/favicon.ico')
-        - self.size  → базовый размер в пикселях
-        - self.h     → 0 значит <span>, 1..6 значит <h1>..<h6>
-        """
-        super().__init__(Owner, Name)
-        # --- Свойства отображения ---
+    # ⚡🛠️ ▸ do_init()
+    def do_init(self):
         self._size_px: int = 16
         self.h: int = 0
-        # ... 🔊 ...
-        self.log("__init__", f"⚙️ icon {self.Name} created")
-        # ⚡🛠️ TIcon ▸ End of __init__
-        # -------- size: пиксели --------
-
+    # -------- size: пиксели --------
     def get_size_class(self) -> str:
         # никакого 'ico-16', размер уходим в style
         return ""
@@ -344,11 +315,11 @@ class TButton(TIconMixin, TCaptionMixin, TLinkMixin, TAtomControl):
     STYLE_KINDS = BTN_KINDS
     STYLE_STYLES = BTN_STYLES
     STYLE_ALIAS = BTN_STYLE_ALIAS
-    """ Чистая версия"""
-    def __init__(self, Owner=None, Name=None):
-        super().__init__(Owner, Name)
+    # ⚡🛠️ ▸ do_init()
+    def do_init(self):
         self.href = "#"           # target href
         self.suffix_html = ""     # html-хвост (иконка/бейдж справа)
+        self.extra_attr = ""
 
     def _link_href(self) -> str:
         return self.href or "#"
@@ -377,7 +348,12 @@ class TButton(TIconMixin, TCaptionMixin, TLinkMixin, TAtomControl):
         return s
     # ---------- render ----------
     def render(self):
-        self.tg("a", cls="", attr=f"href='{self._link_href()}'")
+        attr_parts = [f"href='{self._link_href()}'"]
+        if self.extra_attr:
+            attr_parts.append(self.extra_attr)
+        attr = " ".join(attr_parts)
+
+        self.tg("a", cls="", attr=attr)
         self.text(self.caption)
         if self.suffix_html:
             self.text(self.suffix_html)
@@ -401,19 +377,10 @@ class TBadge(TIconMixin, TCaptionMixin, TAtomControl):
         "lt",  # алиас под bg-*-lt
     }
     STYLE_ALIAS = TAtomControl.STYLE_ALIAS
-    # ⚡🛠️ ▸ __init__
-    def __init__(self, Owner: TOwnerObject | None = None, Name: str | None = None):
-        """
-        Небольшой индикатор-состояние (лейбл) рядом с текстом или иконкой.
-        По умолчанию — Tabler-совместимый бейдж 'Default' малого размера.
-        Иконка (self.icon) опциональна и рисуется слева от текста.
-        """
-        super().__init__(Owner, Name)
+    # ⚡🛠️ ▸ do_init()
+    def do_init(self):
         self.style = "default sm"
         self.silent: bool = False
-        # ... 🔊 ...
-        self.log("__init__", f"⚙️ badge {self.Name} created style={self.style}")
-        # ⚡🛠️ TBadge ▸ End of __init__
     # ..................................................................................................................
     # 🎨 Рендеринг
     # ..................................................................................................................
@@ -491,19 +458,8 @@ class TAvatar(TIconMixin, TAtomControl):
     }
     STYLE_STYLES = {"standard", "rounded", "square", "outline", "soft", "shadow"}
     STYLE_ALIAS = {"standart": "standard"}
-    # ⚡🛠️ ▸ __init__
-    def __init__(self, Owner: TOwnerObject | None = None, Name: str | None = None):
-        """
-        Аватар пользователя: фото, инициалы или иконка внутри круглого/квадратного контейнера.
-        Приоритет содержимого:
-        1) src      → <img src="...">
-        2) initials → текстовые инициалы (PK)
-        3) icon     → строковая иконка (эмодзи/SVG)
-        4) автоинициалы из Name.
-        По умолчанию — маленький rounded-плейсхолдер в цвете default.
-        Дополнительно может показывать статусную точку/бейдж (status/status_text).
-        """
-        super().__init__(Owner, Name)
+    # ⚡🛠️ ▸ do_init()
+    def do_init(self):
         # --- Основные данные аватара ---
         self.src: str | None = None
         self.initials: str | None = None
@@ -513,9 +469,6 @@ class TAvatar(TIconMixin, TAtomControl):
         self.status_text: str | None = None  # None → просто точка, '5' → бейдж с цифрой
         # --- Базовый стиль ---
         self.style = "default sm rounded"
-        # ... 🔊 ...
-        self.log("__init__", f"⚙️ avatar {self.Name} created style={self.style}")
-        # ⚡🛠️ TAvatar ▸ End of __init__
     # ..................................................................................................................
     # 🎨 Рендеринг
     # ..................................................................................................................

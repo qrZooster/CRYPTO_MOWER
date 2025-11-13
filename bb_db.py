@@ -8,6 +8,7 @@
 import hashlib
 import time
 import threading
+import asyncio
 from datetime import datetime
 from typing import Union, Any, Dict, List, Tuple, Optional, Sequence
 from mysql.connector import pooling  # NEW POOL LOGIC
@@ -42,7 +43,7 @@ FLD_VERSION     = 'FLD$VERSION'
 # 🏵️ ... __all__ Public export ...
 __all__ = [
     # --- core ---
-    'TDatabase', 'Application', 'CloseApplication',
+    'TDatabase','TDbEvents', 'Application', 'CloseApplication',
     # legacy
     # --- QR facade ---
     'qr', 'qr_rw',
@@ -743,6 +744,139 @@ class TSchema(TSysComponent):
         # ... 🔊 ...
         self.log("_register_constants", "stage 1 stub (const builder)")
 # ----------------------------------------------------------------------------------------------------------------------
+# 🧩 TDbEvents — системный компонент опроса SYS$EVENTS (Stage 0: таймер + логи)
+# ----------------------------------------------------------------------------------------------------------------------
+class TDbEvents(TSysComponent):
+    """
+    Системный компонент Tradition Core, который периодически опрашивает таблицу SYS$EVENTS.
+    Текущая версия (Stage 0):
+      - принадлежит только TApplication (Owner = TApplication);
+      - раз в poll_interval секунд пишет лог через self.log()
+        о том, что собирается проверить SYS$EVENTS;
+      - никакого SQL и событий пока НЕ делает (только “сердцебиение” механизма).
+
+    Дальше на этом скелете добавим:
+      - last_id и загрузку новых событий из БД;
+      - генерацию внутренних TEvent;
+      - отправку db-сообщений по WebSocket.
+    """
+
+    # базовый интервал опроса (секунды)
+    DEFAULT_POLL_INTERVAL: int = 5
+
+    # ⚡🛠️ ▸ __init__
+    def __init__(self, Owner: "TApplication"):
+        """
+        Создаёт компонент TDbEvents и привязывает его к приложению.
+        Предполагается, что в Application он живёт как единственный экземпляр,
+        например: app.DbEvents = TDbEvents(app)
+        """
+        if not isinstance(Owner, TApplication):
+            raise TypeError("TDbEvents owner must be TApplication")
+
+        super().__init__(Owner, "DbEvents")
+
+        # интервал опроса (секунды) — пока фиксированный, потом вытащим в Config
+        self.poll_interval: int = self.DEFAULT_POLL_INTERVAL
+
+        # флаг остановки и ссылка на фоновую задачу
+        self._stop: bool = False
+        self._task_main: asyncio.Task | None = None
+
+        # “счётчик поколений” опросов — чисто для логов/debug
+        self._tick_counter: int = 0
+        # ... 🔊 ...
+        self.log("__init__", f"db-events watcher created (interval={self.poll_interval}s)")
+    # ..................................................................................................................
+    # 🚀 Жизненный цикл / do_open
+    # ..................................................................................................................
+    def do_open(self) -> bool:
+        """
+        Запускает фоновой асинхронный цикл опроса.
+        Ничего не делает с БД, только пишет логи каждые poll_interval секунд.
+        """
+        if self._task_main is not None and not self._task_main.done():
+            # уже запущен
+            self.log("do_open", "already running")
+            return True
+
+        self._stop = False
+        try:
+            self._task_main = asyncio.create_task(self._run_loop())
+            self.log("do_open", f"started (interval={self.poll_interval}s)")
+            return True
+        except Exception as e:
+            self.fail("do_open", f"failed to start loop: {e}", e)
+            return False
+    # ..................................................................................................................
+    # 🔥 Завершение / do_close
+    # ..................................................................................................................
+    def do_close(self) -> bool:
+        """
+        Останавливает фоновой цикл опроса.
+        Реализация мягкая: ставим _stop=True и ждём завершения задачи.
+        """
+        self._stop = True
+
+        task = self._task_main
+        self._task_main = None
+
+        if task is not None and not task.done():
+            try:
+                # не ждём бесконечно, чтобы не зависнуть при shutdown
+                # (loop сам доработает текущий tick и выйдет)
+                self.log("do_close", "stop requested, waiting task to finish")
+            except Exception:
+                pass
+
+        self.log("do_close", "db-events watcher stopped")
+        return True
+    # ..................................................................................................................
+    # 🧠 Главный цикл опроса
+    # ..................................................................................................................
+    async def _run_loop(self):
+        """
+        Главный асинхронный цикл TDbEvents.
+
+        Сейчас делает только:
+          - раз в poll_interval секунд вызывает _tick();
+          - ловит исключения, чтобы помпа не умирала от одной ошибки.
+        """
+        self.log("_run_loop", "loop started")
+        try:
+            while not self._stop:
+                try:
+                    await self._tick()
+                except Exception as e:
+                    # логируем, но не падаем насмерть
+                    self.fail("_run_loop", f"tick failed: {e}", e)
+
+                # пауза между тиками
+                await asyncio.sleep(max(1, int(self.poll_interval)))
+        finally:
+            self.log("_run_loop", "loop finished")
+    # ..................................................................................................................
+    # ⏱️ Один “тик” опроса (Stage 0: только log())
+    # ..................................................................................................................
+    async def _tick(self):
+        """
+        Один шаг опроса SYS$EVENTS.
+        Stage 0:
+          - увеличиваем счётчик тиков;
+          - пишем лог о том, что “пора бы проверить SYS$EVENTS”.
+        Без реального SQL и без генерации событий.
+        """
+        self._tick_counter += 1
+
+        # в будущих версиях здесь появится SQL и обработка новых строк
+        self.log(
+            "tick",
+            f"poll SYS$EVENTS (tick={self._tick_counter}, interval={self.poll_interval}s)"
+        )
+
+        # на будущее — оставляем await, чтобы сигнатура была async
+        await asyncio.sleep(0)
+# ----------------------------------------------------------------------------------------------------------------------
 # 🏛️👑 Application Facade — ядро и публичные хелперы (qr_*, key_*, mk_hash, ...)
 # ----------------------------------------------------------------------------------------------------------------------
 def Application() -> TApplication:
@@ -763,6 +897,7 @@ def Application() -> TApplication:
         app.Database = TDatabase(app)
         app.Config = TConfig(app)
         app.Schema = TSchema(app)  # Schema принадлежит Application
+        app.DbEvents = TDbEvents(app)
         # ... 🔊 ...
         app.log("Application", "core components created (Session, Database, Config, Schema)")
         # === Закон Tradition: четыре затвора ===
@@ -770,6 +905,7 @@ def Application() -> TApplication:
         app.Database.open()
         app.Config.open()
         app.Schema.open()
+        app.DbEvents.open()
         # ... 🔊 ...
         app.log("Application", "Config & Schema loaded, database connected")
     # ... 🔊 ...

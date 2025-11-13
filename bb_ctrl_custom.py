@@ -27,6 +27,7 @@ class TCustomControl(TComponent):
         "button", "input", "span",
         "h1", "h2", "h3", "h4", "h5", "h6"
     }
+    # 💎 теги которые помечаются BEGIN - END плашками в коде html во время отладки
     DEBUG_TAGS = {
         "header", "footer",
         "div", "section", "nav", "table", "form",
@@ -64,9 +65,8 @@ class TCustomControl(TComponent):
     # ⚡🛠️ ▸ __init__
     def __init__(self, Owner=None, Name: str | None = None):
         super().__init__(Owner, Name)
-        #self._constructing = True
         # --- Дерево UI ---
-        #self.Controls: dict[str, "TCustomControl"] = {}
+        self.last_render_id: int = -1
         self.Canvas: list[str | "TCustomControl"] = []
         # --- Корневой тег этого контрола ---
         # единый источник правды для классов/стилей/атрибутов
@@ -99,8 +99,21 @@ class TCustomControl(TComponent):
 
         # ... 🔊 ...
         #self.log("__init__", f"{self.__class__.__name__} {self.Name} created uid={self.uid}")
-        self.log("__init__", f"{self.__class__.__name__}[{self.prefix}] {self.Name} created")
+        self.log("__init__", f"{self.__class__.__name__}[{self.prefix}] [{self.Name}] created")
         # ⚡🛠️ TCustomControl ▸ End of __init__
+
+    def __init_subclass__(cls, **kwargs):
+        # 1) html() запрещён - Запрещаем потомкам переопределять html(). Это защита единой точки вывода HTML.
+        super().__init_subclass__(**kwargs)
+        if "html" in cls.__dict__:
+            raise TypeError(f"❌ {cls.__name__} пытается переопределить html(), это запрещено!")
+        # 2) __init__() запрещён для всех, кроме базовых контейнеров
+        base_init_whitelist = {"TCustomControl", "TCompositeControl", "TFlex_Tr", "TFlex_Td"}
+        if "__init__" in cls.__dict__ and cls.__name__ not in base_init_whitelist:
+            raise TypeError(
+                f"❌ {cls.__name__} не должен переопределять __init__(). "
+                f"Используй do_init() для дополнительной инициализации."
+            )
 
     def do_init(self):
         pass
@@ -440,8 +453,14 @@ class TCustomControl(TComponent):
         class_list = list(self.classes)
 
         app = self.app()
+        # --- проверка на дубликаты
+        cur_id = getattr(app, "render_id", 0)
+        if self.last_render_id == cur_id:
+            # уже рендерились в этом цикле — просто выходим
+            return
+        self.last_render_id = cur_id
+        # ---
         dbg = bool(app and getattr(app, "debug_mode", False))
-
         if dbg and mark_info:
             palette = mark_info.get("palette_name")
             shade = mark_info.get("shade_idx")
@@ -534,12 +553,6 @@ class TCustomControl(TComponent):
         h = hashlib.sha1(value.encode("utf-8")).digest()
         b32 = base64.b32encode(h).decode("ascii").lower().strip("=")
         return b32[:length]
-
-    def __init_subclass__(cls, **kwargs):
-        """Запрещаем потомкам переопределять html(). Это защита единой точки вывода HTML."""
-        super().__init_subclass__(**kwargs)
-        if "html" in cls.__dict__:
-            raise TypeError(f"❌ {cls.__name__} пытается переопределить html(), это запрещено!")
 
     def clear(self):
         """Полностью очищает содержимое страницы перед перерисовкой. Уничтожает дочерние контролы и Canvas."""
@@ -698,6 +711,7 @@ class TCompositeControl(TCustomControl):
     Может иметь детей и управлять раскладкой через active_control.
     Большинство сложных контролов (Grid, Panel, Td, Card и т.д.) унаследованы отсюда.
     """
+    # ⚡🛠️ ▸ __init__()
     def __init__(self, Owner=None, Name: str | None = None):
         # контейнерное состояние — до super(), чтобы быть готовым к детям
         self._constructing: bool = True
@@ -712,12 +726,20 @@ class TCompositeControl(TCustomControl):
 
     @property
     def active_control(self) -> "TCustomControl":
-        ac = getattr(self, "f_active_control", None)
-        return ac or self
+        return self.get_active_control()
 
     @active_control.setter
     def active_control(self, value: "TCustomControl | None"):
         self.f_active_control = value
+
+    def get_active_control(self) -> "TCustomControl":
+        """
+        Базовое поведение: либо явный f_active_control,
+        либо сам контрол, если override не задан.
+        Наследники могут переопределить этот метод и вообще не трогать f_active_control.
+        """
+        ac = getattr(self, "f_active_control", None)
+        return ac or self
 
     # 🔹 Хук: какие дети считаются "структурными" (header/body/footer/слоты и т.п.)
     # По умолчанию — никого, контейнеры переопределяют.
@@ -759,7 +781,8 @@ class TCompositeControl(TCustomControl):
             target.Components[ctrl.Name] = ctrl
 
         # 4) На target больше НЕ роутим, просто кладём внутрь
-        return target._add_control_basic(ctrl)
+        return target.add_control(ctrl)
+        #return target._add_control_basic(ctrl)
 
     def control(self, ctrl: "TCustomControl"):
         if ctrl.Name in self.Controls:
@@ -772,6 +795,7 @@ class TCompositeControl(TCustomControl):
     # ..................................................................................................................
     def render_children(self):
         """Отрисовывает всех дочерних контролов и вносит их Canvas в текущий Canvas."""
+        #seen = set()
         for child in self.Controls.values():
             if hasattr(child, "_render"):
                 child._render()
@@ -808,25 +832,25 @@ class TCompositeControl(TCustomControl):
 # ----------------------------------------------------------------------------------------------------------------------
 class TFlex_Tr(TCompositeControl):
     prefix = "flex_tr"
-    # ⚡🛠️ ▸ __init__
-    def __init__(self, Owner: "TCardPanel", Name: str | None = None):
+    # ⚡🛠️ ▸ do_init()
+    def do_init(self):
         """
-        Горизонтальная полоса (flex-row), содержащая набор ячеек TFlex_Td. Поведение похоже на строку грида, но без жёсткой сетки: это универсальная панельная строка для тулбаров, хедеров карточек, статусов и т.д.
+        Горизонтальная полоса (flex-row), содержащая набор ячеек TFlex_Td.
+        Поведение похоже на строку грида, но без жёсткой сетки.
         """
-        super().__init__(Owner, Name)
+        # --- Контейнер ячеек строки ---
+        # Список ячеек (TFlex_Td) в порядке добавления.
+        self.Tds: list[TFlex_Td] = []
+        # первая колонка по умолчанию — td(0)
+        self.td()  # создаёт TFlex_Td(self) и кладёт в self.Tds
         # --- Геометрия строки как flex-контейнера ---
         # По умолчанию: одна строка flex-row, тянется на 100% ширины, высота авто.
         self.flex_box(
             direction="row",
             width="100%",
-            height="auto"
+            height="auto",
         )
-        # --- Контейнер ячеек строки ---
-        # Список ячеек (TFlex_Td) в порядке добавления.
-        self.Tds: list[TFlex_Td] = []
-        # ... 🔊 ...
-        self.log("__init__", f"⚙️ flex tr {self.Name} created")
-        # ⚡🛠️ TFlex_Tr ▸ End of __init__
+
     def td(self, index: int | None = None) -> "TFlex_Td | None":
         """
         Возвращает/создаёт ячейку строки.
@@ -843,6 +867,13 @@ class TFlex_Tr(TCompositeControl):
             return self.Tds[index]
         except IndexError:
             return None
+
+    def get_active_control(self) -> "TCustomControl":
+        return self.Tds[-1]
+
+    def is_structural_child(self, ctrl: "TCustomControl") -> bool:
+        # Ячейки строки — всегда структурные (включая наследников TFlex_Td, например TGrid_Td)
+        return isinstance(ctrl, TFlex_Td) or super().is_structural_child(ctrl)
     # ..................................................................................................................
     # 🎨 Render
     # ..................................................................................................................
@@ -883,29 +914,21 @@ class TFlex_Tr(TCompositeControl):
 # ----------------------------------------------------------------------------------------------------------------------
 class TFlex_Td(TCompositeControl):
     prefix = "flex_td"
-
-    def __init__(self, Owner: "TFlex_Tr", Name: str | None = None):
+    # ⚡🛠️ ▸ do_init()
+    def do_init(self):
         """
-        Ячейка внутри TFlex_Tr. Ведёт себя как flex-item. Держит упорядоченный
-        поток контента (контролы и строки) в self.Flow.
+        Ячейка внутри TFlex_Tr. Ведёт себя как flex-item.
+        Держит упорядоченный поток контента в self.Flow.
         """
-        super().__init__(Owner, Name)
-
         # --- Внутренний поток контента ---
-        # Порядок важен. Каждый элемент:
-        #   • TCompositeControl → будет отрисован отдельно и влит внутрь td
-        #   • str      → вставляется как есть через self.text()
         self.Flow: list[Any] = []
-
+        # ⛳ Текст плейсхолдера (показывается, когда Flow пуст)
+        # Если None или "" → плейсхолдер не рисуем.
+        self.place_holder: str | None = None
         # --- Базовая геометрия flex-ячейки ---
         # Ячейка должна уметь тянуться. Даём ей flex-grow-1 и базовый padding.
         self.add_class("flex-grow-1")
         self.add_style("padding:4px;")
-
-        # ... 🔊 ...
-        self.log("__init__", f"⚙️ flex td {self.Name} created")
-        # ⚡🛠️ TFlex_Td ▸ End of __init__
-
     # ..................................................................................................................
     # 🔔 внутренний хук уведомления панели
     # ..................................................................................................................
@@ -920,7 +943,6 @@ class TFlex_Td(TCompositeControl):
         parent_row = getattr(self, "Owner", None)
         if parent_row and hasattr(parent_row, "_notify_child_content"):
             parent_row._notify_child_content(self)
-
     # ..................................................................................................................
     # ➕ Наполнение вручную (текстом или уже готовым контролом)
     # ..................................................................................................................
@@ -969,7 +991,6 @@ class TFlex_Td(TCompositeControl):
 
         # сигнал наверх панели/строке
         self._notify_owner_has_content()
-
     # ..................................................................................................................
     # 🎨 Render
     # ..................................................................................................................
@@ -977,7 +998,25 @@ class TFlex_Td(TCompositeControl):
         """
         _render() уже открыл мой корневой <div id='flex_td-*' ...> и после возврата из render() сам его закроет.
         Здесь просто заливаем содержимое Flow по порядку без доп. обёрток.
+        Если Flow пуст и задан place_holder — рисуем только плейсхолдер.
         """
+        # ⛳ Placeholder: показываем только если в ячейке нет реального содержимого
+        if (not self.Flow) and self.place_holder:
+            text = str(self.place_holder)
+            # простой нейтральный debug-стиль (как в миксине)
+            ph_style = (
+                "color:#999;"
+                "font-size:12px;"
+                "font-family:monospace;"
+                "line-height:1.2;"
+                "opacity:0.6;"
+            )
+            # отдельный div, чтобы можно было переопределить в css по .tc-placeholder
+            self.tg("div", cls="tc-placeholder", attr=f"style='{ph_style}'")
+            self.text(text)
+            self.etg("div")
+            return
+        # ---
         for node in self.Flow:
             if is_visual_node(node):
                 node._render()

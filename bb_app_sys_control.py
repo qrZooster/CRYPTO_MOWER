@@ -7,7 +7,7 @@
 # 🚢 ...imports...
 import asyncio
 from bb_sys import *
-from bb_application import TApplication
+from bb_application import TApplication, asset_url
 from bb_ctrl_pages import *
 from bb_ctrl_base import *
 from bb_ctrl_atom import *
@@ -49,6 +49,7 @@ class TappSysControl(TApplication):
         self.add_link("https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler.min.css", rel="stylesheet")
         self.add_link("https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler-flags.min.css", rel="stylesheet")
         self.add_link("https://cdn.jsdelivr.net/npm/@tabler/core@latest/dist/css/tabler-payments.min.css", rel="stylesheet")
+        self.add_script(asset_url("tc_ws_monitor.js"))  # один раз
     def do_pages(self):
         TlySysControl(self, "default")
         TpgMain(self, "main")
@@ -60,9 +61,6 @@ class TappSysControl(TApplication):
 # 🧩 TlySysControl — системный Layout Tradition Core
 # ----------------------------------------------------------------------------------------------------------------------
 class TlySysControl(TLayout):
-    def __init__(self, Owner=None, Name="syscontrol"):
-        super().__init__(Owner, Name)
-        self.log("__init__", f"layout {self.Name} created")
     # ---
     def render_header(self):
         # Brand
@@ -70,6 +68,7 @@ class TlySysControl(TLayout):
         self.header.text("Tradition Core 2025")
         self.header.etg("a")
         pnl = panel(self, "PanelTop")
+        lbl = label(pnl, "Test")
     # ---
     def render_footer(self):
         self.footer.tg("div", cls="container text-center text-muted small")
@@ -79,8 +78,8 @@ class TlySysControl(TLayout):
 # 🧩 TpgMain — Главная страница
 # ----------------------------------------------------------------------------------------------------------------------
 class TpgMain(TPage):
-    def __init__(self, Owner, Name: str | None = None):
-        super().__init__(Owner, Name)
+    def do_init(self):
+        super().do_init()
         self.title = "TpgMain"
         self.layout = "default"
 
@@ -157,7 +156,7 @@ class TpgMain(TPage):
         button(crd, "got it!!!", style="pill danger sm")
         # Нижняя строка с 3 колонками
         bottom = grd.tr()
-        td1 = bottom.td()
+        td1 = bottom.td(0)
         td2 = bottom.td()
         td3 = bottom.td()
 
@@ -226,14 +225,19 @@ class TpgMain(TPage):
         av3.status = "gray"
         av3.status_text = "5"
         # Рендерим всех детей
-        monitor = TMonitor(td3)
+
+        mon = TCardMonitor(self)
+        mon.screen_class = "tc-mon-screen-dark"
+        mon.font_class = "tc-mon-font-amber"
+
+        crd = TCard(self)
         self.render_children()
 # ----------------------------------------------------------------------------------------------------------------------
 # 🧩 TpgDatabase — Управление базой данных
 # ----------------------------------------------------------------------------------------------------------------------
 class TpgDatabase(TPage):
-    def __init__(self, Owner, Name: str | None = None):
-        super().__init__(Owner, Name)
+    def do_init(self):
+        super().do_init()
         self.title = "Database Control"
         self.layout = "default"
 
@@ -249,8 +253,8 @@ class TpgDatabase(TPage):
 # 🧩 TpgEcho — Вывод TApplication.echo()
 # ----------------------------------------------------------------------------------------------------------------------
 class TpgEcho(TPage):
-    def __init__(self, Owner, Name: str | None = None):
-        super().__init__(Owner, Name)
+    def do_init(self):
+        super().do_init()
         self.title = "Echo Monitor"
         self.layout = "default"
     # ------------------------------------------------------------------------------------------------------------------

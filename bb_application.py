@@ -158,6 +158,7 @@ class TApplication(TOwnerObject, TLogRouterMixin):
         # Системные поля
         # --------------------------------------------------------------------------------------------------------------
         self.debug_mode = True
+        self.render_id = 0
         #self._debug_css_ready = False
         #self._debug_css_cache = ""
         # ---
@@ -190,6 +191,7 @@ class TApplication(TOwnerObject, TLogRouterMixin):
         self.Database = None
         self.Config = None
         self.Schema = None
+        self.DbEvents = None
         self.LocalWebSocketServer = None
 
         # События и каналы
@@ -310,7 +312,7 @@ class TApplication(TOwnerObject, TLogRouterMixin):
             self.log("register_global", f"⚙️ Component registered: {comp.Name}")
     # ------------------------------------------------------------------------------------------------------------------
     def render(self, page: "TPage"):
-        #self.reset_header()
+        self.render_id += 1
         # перед тем как что-то рисовать — убедись что css вставлен
         self.add_meta("charset", "utf-8")
         self.add_meta("viewport", "width=device-width, initial-scale=1.0")
@@ -1032,7 +1034,7 @@ class TApplication(TOwnerObject, TLogRouterMixin):
         Запускает системный стек Tradition Database Core:
         Session → Database → Config → Schema
         """
-        from bb_db import TSession, TDatabase, TConfig, TSchema
+        from bb_db import TSession, TDatabase, TConfig, TSchema, TDbEvents
 
         # --- Session ---
         if not getattr(self, "Session", None):
@@ -1054,12 +1056,18 @@ class TApplication(TOwnerObject, TLogRouterMixin):
             self.Schema = TSchema(self)
             self.log("run_db", "📘 Schema component created")
 
+        # --- DbEvents ---
+        if not getattr(self, "DbEvents", None):
+            self.DbEvents = TDbEvents(self)
+            self.log("run_db", "📘 DbEvents component created")
+
         # === Закон Tradition: четыре затвора ===
         try:
             self.Session.open()
             self.Database.open()
             self.Config.open()
             self.Schema.open()
+            self.DbEvents.open()
             self.log("run_db", "✅ Database stack fully initialized")
         except Exception as e:
             self.fail("run_db", f"❌ initialization failed: {e}", type(e))

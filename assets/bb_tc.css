@@ -71,3 +71,44 @@ html, body {
 html {
     overflow-y: scroll;  /* вертикальный скролл всегда зарезервирован */
 }
+
+.tc-status-online {
+    background-color: #2f9e44;   /* зелёный */
+    color: #fff;
+}
+
+.tc-status-offline {
+    background-color: #adb5bd;   /* серенький */
+    color: #fff;
+}
+
+/* “экран” (фон/рамка) */
+.tc-monitor-screen-dark {
+    background-color: #050915;
+    border: 1px solid #1f2933;
+    border-radius: 6px;
+}
+
+.tc-monitor-screen-light {
+    background-color: #f5f7fb;
+    border: 1px solid #cbd5f5;
+    border-radius: 6px;
+}
+
+/* “шрифт” (цвет/стиль) */
+.tc-monitor-font-default {
+    color: #e5e7eb;
+}
+
+.tc-monitor-font-amber {
+    color: #ffd27f;
+}
+
+.tc-monitor-font-green {
+    color: #7fff7f;
+}
+
+.tc-monitor-font-danger {
+    color: #ff6b6b;
+}
+

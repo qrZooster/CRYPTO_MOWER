@@ -179,7 +179,7 @@ class TOwnerObject:
         """
         return None
     # ..................................................................................................................
-    # 🏷️👨‍👩‍👧‍👧 Идентичность и родословная
+    # 🏷️👨‍👩‍👧‍👧 Идентичность и родословная - Name
     # ..................................................................................................................
     @property
     def Name(self) -> str:
@@ -189,17 +189,70 @@ class TOwnerObject:
     # ---
     @Name.setter
     def Name(self, value: str | None):
-        self.f_name = "" if value is None else str(value)
+        """
+        Правила:
+        - пустое имя запрещено (None / '' / '   ' → fail);
+        - если Owner есть, имя всегда синхронизировано с Owner.Components;
+        - попытка задать имя, которое уже занято другим ребёнком Owner → fail;
+        - присваивание того же самого имени → no-op.
+        """
+        new = "" if value is None else str(value).strip()
+
+        # 1) пустое имя запрещено
+        if not new:
+            self.fail("Name", "Empty Name is not allowed", ValueError)
+
+        owner = getattr(self, "Owner", None)
+        old = getattr(self, "f_name", "")
+
+        # 2) нет Owner-а → просто меняем локальное имя
+        if owner is None:
+            self.f_name = new
+            return
+
+        # 3) имя не меняется → ничего не делаем
+        if old == new:
+            return
+
+        # 4) проверка на дубликат у Owner
+        exists = owner.Components.get(new)
+        if exists is not None and exists is not self:
+            self.fail("Name", f"Duplicate component: {new}", ValueError)
+
+        # 5) перекидываем ключ в Components
+        if old and owner.Components.get(old) is self:
+            del owner.Components[old]
+        owner.Components[new] = self
+
+        # 6) обновляем локальное поле
+        self.f_name = new
+    # --- определение компонента содержащего пространство имен ---
+    def _name_scope_root(self) -> "TOwnerObject":
+        """
+        Область имён для автоимён:
+        - ближайший вверх Owner с NAME_SCOPE_ROOT = True;
+        - если таких нет — верхний Owner (как раньше).
+        """
+        owner = getattr(self, "Owner", None)
+        visited: set[int] = set()
+        last: "TOwnerObject | None" = None
+        root_candidate: "TOwnerObject | None" = None
+
+        while owner is not None and id(owner) not in visited:
+            visited.add(id(owner))
+            last = owner
+            if getattr(owner, "NAME_SCOPE_ROOT", False):
+                root_candidate = owner
+            owner = getattr(owner, "Owner", None)
+
+        return root_candidate or last or self
     # ---
     def _get_unique_name(self) -> str:
         """
-        PHASE 1:
         Имя = ИмяКласса без ведущей 'T' + порядковый номер.
-        TPanel  → Panel1
-        TLabel  → Label1
-        TGrid_Tr → Grid_Tr1
+        Теперь счётчики живут на корне области имён (обычно TPage),
+        а не у непосредственного Owner-а.
         """
-
         # класс -> "Panel", "Label", "Grid_Tr"
         raw_class = self.__class__.__name__
         if raw_class.startswith("T") and len(raw_class) > 1:
@@ -207,19 +260,20 @@ class TOwnerObject:
         else:
             human_name = raw_class
 
-        # получаем счётчик
+        # 👉 получаем корень области имён
         if self.Owner is not None:
-            counters = getattr(self.Owner, "_auto_counters", None)
+            root = self._name_scope_root()
+            counters = getattr(root, "_auto_counters", None)
             if counters is None:
                 counters = {}
-                setattr(self.Owner, "_auto_counters", counters)
+                setattr(root, "_auto_counters", counters)
         else:
             counters = _GLOBAL_AUTO_COUNTERS  # глобальный счётчик для корневых
 
         n = counters.get(human_name, 0) + 1
         candidate = f"{human_name}{n}"
 
-        # уникальность в пределах Owner
+        # уникальность в пределах непосредственного Owner-а
         if self.Owner is not None:
             while candidate in self.Owner.Components:
                 n += 1
@@ -227,7 +281,7 @@ class TOwnerObject:
 
         counters[human_name] = n
         return candidate
-    # ---
+    # --- полная родословная ---
     def id(self) -> str:
         """
         Возвращает полный путь владения (родословную) через дефис, от корня до текущего узла. Если обнаружен цикл владения глубже 1024 шагов — падаем через fail().

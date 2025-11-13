@@ -15,7 +15,7 @@ from bb_ctrl_custom import *
 from bb_ctrl_mixin import *
 from datetime import datetime
 # 💎🧩⚙️ ... __ALL__ ...
-__all__ = ["TGrid", "TPanel", "TCard", "TMenu", "TMonitor"]
+__all__ = ["TGrid", "TPanel", "TCard", "TMenu", "TMonitor", "TCardMonitor"]
 # ----------------------------------------------------------------------------------------------------------------------
 # 🧩 TGrid — каркас страницы / секции (flex-column из строк)
 # ----------------------------------------------------------------------------------------------------------------------
@@ -23,43 +23,68 @@ class TGrid(TCompositeControl):
     prefix = "grid"
     MARK_FAMILY = "grid"
     MARK_LEVEL = 0
-
-    def __init__(self, Owner: TOwnerObject | None = None, Name: str | None = None):
+    # ⚡🛠️ ▸ do_init()
+    def do_init(self):
         """
         Контейнер строк грида (flex-каркас страницы / панели).
-
-        Дочерние элементы — это TGrid_Tr (строки).
-        Каждая строка сама является flex-контейнером по горизонтали и хранит TGrid_Td.
-
-        По умолчанию грид — это вертикальный столбец строк:
-            flex-direction: column;
-            gap: 1rem;
-            width: 100%;
-            height: 100%;
-
-        После создания можно править:
-            .direction ('row'/'column')
-            .border (если надо отдебажить рамкой)
+        Базовая инициализация:
+        - flex-column
+        - список Rows
+        - первая строка grid.tr(0) с хотя бы одной ячейкой
         """
-        super().__init__(Owner, Name)
-
-        # --- Геометрия грида ---
-        self.direction: str = "column"          # направление основного flex-потока
-        self.Rows: list["TGrid_Tr"] = []        # упорядоченный набор строк (TGrid_Tr)
-
-        # Делаем сам грид flex-контейнером (колонка строк)
+        super().do_init()
+        # направление основного flex-потока
+        self.direction: str = "column"
+        # упорядоченный набор строк (TGrid_Tr)
+        self.Rows: list["TGrid_Tr"] = []
+        # делаем сам грид flex-контейнером (колонка строк)
         self.flex_box(
             direction=self.direction,
             gap="1rem",
             width="100%",
             height="100%",
         )
-
-        # если снаружи кто-то поставил grid.border = "2px dashed lime"
+        # если снаружи поставили grid.border = "2px dashed lime"
         if getattr(self, "border", None):
             self.add_style(f"border:{self.border};")
 
-        self.log("__init__", f"⚙️ grid {self.Name} created dir={self.direction}")
+        # создаём первую строку по умолчанию
+        self.tr()  # row 0 с уже готовой td(0) внутри
+    # ..........................................................
+    # 🔹 active_control: последняя строка / её активная ячейка
+    # ..........................................................
+    def get_active_control(self) -> "TCustomControl":
+        """
+        Контейнер по умолчанию для контента TGrid:
+
+        - если строк ещё нет → создаём первую строку TGrid_Tr + её первую ячейку TGrid_Td,
+        - если строки уже есть → берём последнюю строку и её active_control
+          (для TGrid_Tr это последняя ячейка).
+
+        Любой контрол, созданный с Owner=TGrid (btn = TButton(grid)),
+        будет пересажен именно в этот target-ctrl.
+        """
+        rows = getattr(self, "Rows", None)
+
+        # Грид ещё пуст → лениво создаём первую строку
+        if not rows:
+            row = self.tr()  # создаст TGrid_Tr(self) и положит в self.Rows
+        else:
+            row = rows[-1]
+
+        # строка сама знает, кто у неё активная ячейка (TFlex_Tr.get_active_control)
+        if isinstance(row, TCompositeControl):
+            return row.get_active_control()
+
+        # запасной вариант, на случай странного Owner
+        return super().get_active_control()
+
+    def is_structural_child(self, ctrl: "TCustomControl") -> bool:
+        """
+        Для грида любые TGrid_Tr — всегда структурные дети (layout-only).
+        Их нельзя считать контентом и роутить через active_control.
+        """
+        return isinstance(ctrl, TGrid_Tr) or super().is_structural_child(ctrl)
     # ..................................................................................................................
     # 🧱 Строки и ячейки грида
     # ..................................................................................................................
@@ -85,20 +110,27 @@ class TGrid(TCompositeControl):
         except IndexError:
             return None
 
-    def td(self, row_index: int, cell_index: int | None = None) -> "TGrid_Td | None":
+    def td(self, row_index: int | None = None, cell_index: int | None = None) -> "TGrid_Td | None":
         """
         Удобный доступ к ячейке.
-
-        grid.td(r)        → создаёт/возвращает первую свободную ячейку строки r.
-        grid.td(r, c)     → вернуть конкретную ячейку c строки r.
+        grid.td()            → работает с первой строкой (row_index = 0).
+                               При необходимости строка 0 создаётся.
+        grid.td(r)           → создаёт/возвращает первую свободную ячейку строки r.
+        grid.td(r, c)        → вернуть конкретную ячейку c строки r.
 
         Реализация делегирована строке:
             row = grid.tr(r)
             row.td(c)
         """
-        row = self.tr(row_index)
-        if not row:
-            return None
+        # по умолчанию работаем с первой строкой
+        if row_index is None:
+            row_index = 0
+        # гарантируем наличие строки row_index
+        while len(self.Rows) <= row_index:
+            # tr() без аргументов добавляет новую строку в конец
+            self.tr()
+        # ---
+        row = self.Rows[row_index]
         return row.td(cell_index)
     # ..................................................................................................................
     # 🎨 Рендеринг грида
@@ -106,11 +138,44 @@ class TGrid(TCompositeControl):
     def render(self):
         """
         Рендерим строки грида по порядку.
-        Каждая строка сама:
-            - откроет свой контейнер через _render()
-            - отрендерит свои TGrid_Td
-        Здесь мы просто вливаем результат строк в Canvas грида.
+        В debug-режиме перед рендером проставляем place_holder
+        для пустых ячеек:
+
+            • если строка одна  → Grid1.td(c)
+            • если строк > 1    → Grid1.tr(r).td(c)
         """
+        app = None
+        try:
+            app = self.app()
+        except Exception:
+            app = None
+
+        dbg = bool(app and getattr(app, "debug_mode", False))
+        rows_count = len(self.Rows)
+
+        if dbg and rows_count:
+            base_name = self.Name
+            for r, row in enumerate(self.Rows):
+                cells = getattr(row, "Tds", [])
+                for c, cell in enumerate(cells):
+                    # рамка и класс вокруг каждой debug-ячейки
+                    if hasattr(cell, "add_class"):
+                        cell.add_class(tc_dbg_class("cell"))
+
+                    # если в ячейке уже есть контент — плейсхолдер не нужен
+                    flow = getattr(cell, "Flow", [])
+                    if flow:
+                        continue
+
+                    # подпись по протоколу
+                    if rows_count == 1:
+                        label = f"{base_name}.td({c})"
+                    else:
+                        label = f"{base_name}.tr({r}).td({c})"
+
+                    setattr(cell, "place_holder", label)
+
+        # обычный рендер строк
         for row in self.Rows:
             row._render()
             self.Canvas.extend(row.Canvas)
@@ -179,22 +244,20 @@ class TGrid_Tr(TFlex_Tr):
     prefix = "grid_tr"
     MARK_FAMILY = "grid"
     MARK_LEVEL = 1
-    # ⚡🛠️ ▸ __init__
-    def __init__(self, Owner: TOwnerObject | None = None, Name: str | None = None):
+    # ⚡🛠️ ▸ do_init()
+    def do_init(self):
         """
-        Строка грида. Наследует механику TFlex_Tr (flex-row, width:100%, height:auto).
-        Оставляем грид-специфику: высота и строгая политика владения.
-        Переопределяй в потомках.
+        Строка грида. Наследует механику TFlex_Tr:
+        - Tds + td(0)
+        - flex-row, width:100%, height:auto
+        Оставляем грид-специфику: высота и строгую политику владения.
         """
-        super().__init__(Owner, Name)
+        super().do_init()
+
         # --- Геометрия строки ---
         self.height: str = "auto"
         if self.height and self.height != "auto":
             self.add_style(f"height:{self.height};")
-        # ... 🔊 ...
-        self.log("__init__", f"⚙️ grid row {self.Name} created height={self.height}")
-        # ⚡🛠️ TGrid_Tr ▸ End of __init__
-
     # ..................................................................................................................
     # 🔳 Работа с ячейками (совместимость c API грида)
     # ..................................................................................................................
@@ -222,7 +285,6 @@ class TGrid_Tr(TFlex_Tr):
             return self.Tds[index]
         except IndexError:
             return None
-
     # ..................................................................................................................
     # 🛡️ Политика владения
     # ..................................................................................................................
@@ -242,19 +304,14 @@ class TGrid_Td(TFlex_Td):
     MARK_FAMILY = "grid"
     MARK_LEVEL = 2
     # ⚡🛠️ ▸ __init__
-    def __init__(self, Owner: TOwnerObject | None = None, Name: str | None = None):
+    def do_init(self):
         """
         Ячейка строки грида. Наследует механику TFlex_Td (flex-item, flow, рендер).
         Оставляем грид-специфику: width и строгую политику владения.
-        Переопределяй в потомках.
         """
-        super().__init__(Owner, Name)
+        super().do_init()
         # --- Основные параметры td ---
         self.width: str = "auto"
-        # ... 🔊 ...
-        self.log("__init__", f"⚙️ grid cell {self.Name} created width={self.width}")
-        # ⚡🛠️ TGrid_Td ▸ End of __init__
-
     # ..................................................................................................................
     # 🛡️ Политика владения
     # ..................................................................................................................
@@ -274,81 +331,39 @@ class TPanel(TPlaceholderMixin, TFlex_Tr):
     MARK_FAMILY = "panel"
     MARK_LEVEL = 0
 
-    def __init__(self, Owner=None, Name=None):
-        super().__init__(Owner, Name)
+    def do_init(self):
+        """
+        Универсальная панель (flex-row).
+        - базовая строка с колонками: TFlex_Tr.do_init() создаёт Tds и td(0)
+        - в debug-режиме в первую колонку вешаем placeholder-лейбл по имени панели
+        """
+        TFlex_Tr.do_init(self)
 
-        # состояние автоколонки
-        self._auto_td0: "TFlex_Td | None" = super().td(None)  # первая колонка
-        self._td0_claimed: bool = False                       # True -> td0 явно занята контентом
+        app = None
+        try:
+            app = self.app()
+        except Exception:
+            app = None
 
-        # по умолчанию всё летит в первую колонку
-        if self._auto_td0 is not None:
-            self.active_control = self._auto_td0
-
-        app = self.app()
         if app and getattr(app, "debug_mode", False):
-            # ✅ здесь _auto_td0 уже гарантированно есть
-            border_frag = "border:1px dashed rgba(160,160,160,0.6);"
+            first_td = self.Tds[0] if getattr(self, "Tds", None) else None
+            if first_td is not None:
+                border_frag = "border:1px dashed rgba(160,160,160,0.6);"
 
-            # Текст плейсхолдера — имя панели
-            self.place_holder = getattr(self, "Name", "") or ""
+                # рамка остаётся на самой панели, как раньше
+                self.add_style(border_frag)
 
-            # вся логика отрисовки/снятия плейсхолдера — в миксине
-            self._init_placeholder(
-                container=self._auto_td0,
-                text=self.place_holder,
-                border_style=border_frag,
-            )
-
-        self.log("__init__", f"panel {self.Name} created")
-
+                # а текст плейсхолдера теперь ведёт сама ячейка
+                first_td.place_holder = getattr(self, "Name", "") or ""
     # ..................................................................
-    # 🧱 td() с "первой ячейкой по умолчанию"
-    # ..................................................................
-    def td(self, index: int | None = None) -> "TFlex_Td | None":
-        """
-        pnl.td() первый раз → возвращает уже созданную td0 (не снимая плейсхолдер сам по себе).
-        pnl.td() второй раз → создаёт новую колонку (td1, td2, ...).
-        td(n)/td(-1)        → обычная логика базового класса.
-        """
-        if index is None:
-            if self._auto_td0 is not None and not self._td0_claimed:
-                self._td0_claimed = True
-                return self._auto_td0
-            return super().td(None)
-
-        return super().td(index)
-
-    # ..................................................................
-    # 🔁 Child registration hooks
+    # 🔁 уведомление от колонок
     # ..................................................................
     def _notify_child_content(self, td: "TFlex_Td"):
-        if td is self._auto_td0:
-            self._td0_claimed = True
+        """
+        Любое живое содержимое в любой колонке панели —
+        повод снять placeholder/скелет (если он ещё есть).
+        """
         self._disable_placeholder_if_needed()
-
-    def add_control(self, ctrl: "TCustomControl"):
-        # структурные колонки — как обычно
-        if isinstance(ctrl, TFlex_Td):
-            return super().add_control(ctrl)
-
-        # по умолчанию кидаем в ПОСЛЕДНЮЮ ячейку (td(-1))
-        cell = self.td(-1) or super().td(None)
-
-        # убрать с панели (пересадка во внутренний td)
-        if ctrl.Name in self.Components:
-            del self.Components[ctrl.Name]
-        if hasattr(self, "Controls") and ctrl.Name in self.Controls:
-            del self.Controls[ctrl.Name]
-
-        ctrl.Owner = cell
-        cell.Components[ctrl.Name] = ctrl
-        cell.add_control(ctrl)
-
-        # панель «ожила»: снимаем плейсхолдер/рамку, если были
-        self._disable_placeholder_if_needed()
-        return ctrl
-
     # ..................................................................
     # 🔰 mark* methods
     # ..................................................................
@@ -360,7 +375,6 @@ class TPanel(TPlaceholderMixin, TFlex_Tr):
 
     def _child_mark_level(self) -> int:
         return 1
-
     # ..................................................................
     # 🛡️ PHASE 2: политика владения
     # ..................................................................
@@ -372,61 +386,49 @@ class TPanel(TPlaceholderMixin, TFlex_Tr):
 
     def _allowed_child_types(self) -> tuple[type, ...] | None:
         return (TFlex_Td, TCustomControl)
+    # 🔒 ЯВНЫЙ ЗАПРЕТ попыток работать со строками, как в гриде
+    def tr(self, *args, **kwargs):
+        """
+        Панель — это одна строка.
+        Любая попытка создать вторую строку через tr()
+        считается ошибкой дизайна: использовать TGrid.
+        """
+        self.fail(
+            "tr",
+            "TPanel is single-row layout. Use TGrid for multiple rows."
+        )
 # ----------------------------------------------------------------------------------------------------------------------
 # 🧩 TCardPanel — панель внутри карточки (header / footer / status)
 # ----------------------------------------------------------------------------------------------------------------------
-class TCardPanel(TFlex_Tr):
+class TCardPanel(TFlex_Tr, TIconMixin, TCaptionMixin):
     prefix = "cpnl"
     MARK_FAMILY = "card"
     MARK_LEVEL = 1
-    # ⚡🛠️ ▸ __init__
-    def __init__(self, Owner=None, Name: str | None = None):
+    # ⚡🛠️ ▸ do_init()
+    def do_init(self):
         """
         Панель карточки. Живёт ТОЛЬКО внутри TCard и заменяет старый TPanel.
-        Назначение задаётся self.type:
-          • "ptHeader" → верх карточки (иконка + title + sub_title + действия справа)
-          • "ptFooter" → нижняя панель статуса
-          • "ptStatus" → компактный статус-бар (мелкий шрифт)
-          • "ptNone"   → универсальная гибкая строка
-        Внутри всегда есть три колонки (td):
-          left_td  — слева,
-          mid_td   — середина (растягивается),
-          right_td — справа.
+        Структура:
+          left_td  — слева
+          mid_td   — середина (растягивается)
+          right_td — справа
         """
-        super().__init__(Owner, Name)
-
+        # базовая flex-строка: создаёт Tds и первую td(0)
+        super().do_init()
         # --- Роль панели ---
         self.type: str = "ptNone"
-
         # --- Колонки панели ---
-        # каждая колонка — это TFlex_Td, создаётся сразу и живёт постоянно
-        self.left_td = self.td()
+        # первая td, созданная TFlex_Tr.do_init(), становится left_td
+        self.left_td = self.Tds[0]
+        # добавляем ещё две колонки: mid и right
         self.mid_td = self.td()
         self.right_td = self.td()
-
-        # левая колонка — контент слева (иконка+заголовок в header)
-        self.left_td.add_class("d-flex")
-        self.left_td.add_class("align-items-start")
-        self.left_td.add_class("gap-2")
-        self.left_td.add_class("flex-wrap")
-
+        # левая колонка — контент слева (иконка + заголовок)
+        self.left_td.add_class("d-flex", "align-items-start", "gap-2", "flex-wrap")
         # средняя колонка — растягиваемая зона
-        self.mid_td.add_class("d-flex")
-        self.mid_td.add_class("align-items-center")
-        self.mid_td.add_class("flex-grow-1")
-        self.mid_td.add_class("gap-2")
-        self.mid_td.add_class("flex-wrap")
-
+        self.mid_td.add_class("d-flex", "align-items-center", "flex-grow-1", "gap-2", "flex-wrap")
         # правая колонка — actions справа
-        self.right_td.add_class("d-flex")
-        self.right_td.add_class("align-items-center")
-        self.right_td.add_class("gap-2")
-        self.right_td.add_class("flex-wrap")
-        self.right_td.add_class("ms-auto")
-
-        # ... 🔊 ...
-        self.log("__init__", f"⚙️ card-panel {self.Name} created type={self.type}")
-        # ⚡🛠️ TCardPanel ▸ End of __init__
+        self.right_td.add_class("d-flex", "align-items-center", "gap-2", "flex-wrap", "ms-auto")
     # ..................................................................................................................
     # 🔧 Внутренний автосборщик заголовка карточки
     # ..................................................................................................................
@@ -501,12 +503,10 @@ class TCardPanel(TFlex_Tr):
         """
         # автоконтент для header
         self._auto_header_compose()
-
         # мелкий текст для статус-панелей
         if self.type == "ptStatus":
             self.add_class("text-muted")
             self.add_class("small")
-
         # теперь обычный рендер flex-строки
         super().render()
     # ..................................................................................................................
@@ -559,33 +559,25 @@ class TCardPanel(TFlex_Tr):
 # ----------------------------------------------------------------------------------------------------------------------
 # 🧩 TCardBody — панель тела карточки (без плейсхолдера)
 # ----------------------------------------------------------------------------------------------------------------------
-class TCardBody(TPanel):
+class TCardBody(TGrid):
     prefix = "card_body"
     MARK_FAMILY = "card"
     MARK_LEVEL = 1
 
-    def __init__(self, Owner=None, Name: str | None = None):
+    def do_init(self):
         """
-        Тело карточки. Наследует поведение панели, но:
-        - добавляет класс 'card-body';
-        - сразу отключает placeholder/рамку панели в debug;
-        - служит приёмником для детей, созданных с Owner=TCard.
+        Тело карточки.
+        Ведёт себя как grid:
+        - flex-column контейнер с Rows/Tds
+        - добавляет класс 'card-body'
         """
-        super().__init__(Owner, Name)
-
-        # семантика Bootstrap/Tabler
+        TGrid.do_init(self)
         self.add_class("card-body")
 
-        # у CardBody нам панельный placeholder не нужен вообще
-        try:
-            self._disable_placeholder_if_needed()  # убрать auto td0-плейсхолдер и пунктир
-        except AttributeError:
-            # на случай, если вдруг миксина нет (страховка вперёд)
-            pass
-
-        self.log("__init__", f"⚙️ card-body {self.Name} created")
-
-    # ЯВНО говорим debug-механизму: это не panel, а card[1]
+    def get_active_control(self) -> "TCustomControl":
+        """ Активная ячейка тела карточки. """
+        return self.Rows[-1].Tds[-1]
+    # debug-семейство: это часть карточки
     def _mark_family(self) -> str | None:
         return "card"
 
@@ -594,79 +586,111 @@ class TCardBody(TPanel):
 # ----------------------------------------------------------------------------------------------------------------------
 # 🧩 TCard — карточка с header / body / footer (базовый каркас Tradition Core)
 # ----------------------------------------------------------------------------------------------------------------------
-class TCard(TCompositeControl):
+class TCard(TIconMixin, TPlaceholderMixin, TCompositeControl):
     prefix = "card"
     MARK_FAMILY = "card"
     MARK_LEVEL = 0
-
-    def __init__(self, Owner=None, Name: str | None = None):
-        super().__init__(Owner, Name)
-        self._constructing = True                      # <— NEW
-        self.add_class("card");
+    # ⚡🛠️ ▸ do_init()
+    def do_init(self):
         self.add_class("shadow-sm")
-
-        self.icon = "🔥";
-        self.title = self.Name;
-        self.sub_title = ""
-        self.body_text_default = self.Name
-
+        # --- Структурные дети карточки ---
+        self.header_enabled: bool = True
+        self.footer_enabled: bool = False
+        # header
         self.header = TCardPanel(self, "Header")
-        self.header.add_class("card-header")           # <— keep Tabler role
-
-        self.body = TCardBody(self, "Body")            # <— exists before using
-
+        self.header.type = "ptHeader"
+        self.header.add_class("card-header")  # Tabler-совместимый класс
+        # body
+        self.body = TCardBody(self, "Body")  # внутри уже card-body и отключённый panel-placeholder
+        # footer
         self.footer = TCardPanel(self, "Footer")
         self.footer.add_class("card-footer")
-        self.footer.add_class("text-muted"); self.footer.add_class("small")
+        self.footer.add_class("text-muted")
+        self.footer.add_class("small")
+        # --- Дефолтные логические значения ---
+        # ⚠ пока сохраняем body_text_default как есть, уберём отдельным шагом
+        self.icon = "🔷"
+        # служебный флаг: "заголовок ещё не задавали"
+        self.f_title = "<none>"
+        self.sub_title = ""
+        # 🔹 текст плейсхолдера для body
+        #self.place_holder = f"body:{self.Name}"
 
-        self._constructing = False                     # <— NEW
-        self.log("__init__", f"⚙️ card {self.Name} created")
+    def get_active_control(self) -> "TCustomControl":
+        """
+        Любой визуальный ребёнок карточки по умолчанию идёт в её body.
+        Дальше body (как панель/строка) сам решает, в какую td его положить.
+        """
+        body = getattr(self, "body", None)
+        if isinstance(body, TCompositeControl):
+            return body.active_control
+        # запасной вариант — базовое поведение
+        return super().get_active_control()
     # ..........................................................
-    # 🔹 Фасад: caption → Header.caption
+    # 🔹 Фасад: title → нeader.caption
     # ..........................................................
     @property
-    def caption(self) -> str | None:
-        header = getattr(self, "Header", None)
-        # если Header ещё не создан или без миксина — вернём None
-        return getattr(header, "caption", None) if header is not None else None
+    def title(self) -> str:
+        """
+        Логика:
+        - f_title == "<none>"  → title:{Name}
+        - f_title == ""        → пустая строка (осознанный выбор)
+        - любое другое значение → возвращаем как есть
+        """
+        raw = getattr(self, "f_title", "<none>")
+        if raw == "<none>":
+            return f"title:{self.Name}"
+        return raw or ""
 
-    @caption.setter
-    def caption(self, value: str | None):
-        header = getattr(self, "Header", None)
+    @title.setter
+    def title(self, value: str | None):
+        if value is None:
+            # сброс к режиму "дефолт: title:Name"
+            raw = "<none>"
+        else:
+            raw = str(value)
+
+        self.f_title = raw
+
+        header = getattr(self, "header", None)
         if header is not None and hasattr(header, "caption"):
-            header.caption = value
+            if raw == "<none>":
+                header.caption = f"title:{self.Name}"
+            else:
+                header.caption = raw
     # ..........................................................
-    # 🔹 Фасад: icon → Header.icon
+    # 🔹 Фасад: icon → header.icon
     # ..........................................................
     @property
     def icon(self) -> str | None:
-        header = getattr(self, "Header", None)
+        header = getattr(self, "header", None)
         return getattr(header, "icon", None) if header is not None else None
 
     @icon.setter
     def icon(self, value: str | None):
-        header = getattr(self, "Header", None)
+        header = getattr(self, "header", None)
         if header is not None and hasattr(header, "icon"):
             header.icon = value
     # ..................................................................................................................
     # 🎨 Рендер
     # ..................................................................................................................
     def render(self):
-        """
-        1) header._render()
-        2) body._render()  (если пусто — кладём body_text_default)
-        3) footer._render()
-        """
-        if self.header:
+        # HEADER
+        if self.header and self.header_enabled:
             self.header._render()
             self.Canvas.extend(self.header.Canvas)
-        if not self._body_has_content():
-            self.body.td().add(self.body_text_default)
+        # BODY
         self.body._render()
         self.Canvas.extend(self.body.Canvas)
-        if self.footer:
+        # FOOTER
+        if self.footer and self.footer_enabled:
             self.footer._render()
             self.Canvas.extend(self.footer.Canvas)
+    # ..................................................................................................................
+    # 🔹 Фасад: доступ к ячейкам тела карточки
+    # ..................................................................................................................
+    def td(self, index: int | None = None):
+        return self.body.td(index)
     # ..................................................................................................................
     # 🔧 Перехват регистрации детей: всё не header/body/footer → в body
     # ..................................................................................................................
@@ -680,16 +704,8 @@ class TCard(TCompositeControl):
             ) if c is not None
         )
     # ..................................................................................................................
-    # 🔍 Вспомогательное
-    # ..................................................................................................................
-    def _body_has_content(self) -> bool:
-        for td in getattr(self.body, "Tds", []):
-            if getattr(td, "Flow", []):
-                return True
-        return False
-    # ------------------------------------------------------------------------------------------------------------------
     # mark() / debug family hooks
-    # ------------------------------------------------------------------------------------------------------------------
+    # ..................................................................................................................
     def _mark_family(self) -> str | None:
         # семейство, которое участвует в подсветке и палитре
         return "card"
@@ -701,7 +717,6 @@ class TCard(TCompositeControl):
     def _child_mark_level(self) -> int:
         # её внутренние flex-панели (header/footer панельки) помечаем уровнем 1
         return 1
-
     # политика владения (PHASE 2)
     def _owner_required(self) -> bool:
         # Card всегда чей-то ребёнок (страницы, td, панели и т.п.)
@@ -725,19 +740,17 @@ class TMenu(TCompositeControl):
     prefix = "menu"
     MARK_FAMILY = "menu"
     MARK_LEVEL = 0
-
-    def __init__(self, Owner: TOwnerObject | None = None, Name: str | None = None):
-        super().__init__(Owner, Name)
+    # ⚡🛠️ ▸ do_init()
+    def do_init(self):
         self.items: list["TMenuItem"] = []
         self.orientation: str = "horizontal"  # "horizontal" | "vertical"
         self.variant: str = "pills"           # "pills" | "tabs" | "plain"
         self.auto_active: bool = True
-        self.flex_box(direction="row", gap="0.5rem", width="100%")  # контейнер можно стилизовать снаружи
-
+        # контейнер можно стилизовать снаружи
+        self.flex_box(direction="row", gap="0.5rem", width="100%")
     # семантический корневой тег
     def root_tag(self) -> str:
         return "nav"
-
     # политика владения/детей (динамически, чтобы избежать форвард-линков)
     def _allowed_child_types(self) -> tuple[type, ...] | None:
         cls = globals().get("TMenuItem")
@@ -798,9 +811,8 @@ class TMenuItem(TCompositeControl, TLinkMixin, TCaptionMixin, TIconMixin):
     prefix = "menu_item"
     MARK_FAMILY = "menu"
     MARK_LEVEL = 1
-
-    def __init__(self, Owner: TOwnerObject | None = None, Name: str | None = None):
-        super().__init__(Owner, Name)
+    # ⚡🛠️ ▸ do_init()
+    def do_init(self):
         self.active: bool = False
         self.disabled: bool = False
         self.group_index: int = 0  # для стилей/логики групп
@@ -810,7 +822,6 @@ class TMenuItem(TCompositeControl, TLinkMixin, TCaptionMixin, TIconMixin):
 
     def root_tag(self) -> str:
         return "li"
-
     # политика владения
     def _owner_required(self) -> bool:
         return True
@@ -868,51 +879,188 @@ class TMonitor(TCustomControl, TwsSubscriberMixin):
     - внутри: <pre class="tc-monitor-body" ...> — точка привязки к WS
     По умолчанию подписан на канал "log", type="log_line".
     """
-    def __init__(self, Owner: TOwnerObject | None = None, Name: str | None = None):
-        super().__init__(Owner, Name)
-
+    def do_init(self):
         # WS-подписка по умолчанию
         self.channel = "log"
         self.type = "log_line"
 
         # режим работы монитора (для фронта)
         self.mode: str = "append"   # "append" | "replace" (сейчас используем append)
-        self.max_lines: int = 500   # лимит строк в <pre>, фронт сам обрежет
+        self.max_lines: int = 20   # лимит строк в <pre>, фронт сам обрежет
 
         # базовые классы оформления (без навязывания цветов)
         self.add_class("tc-monitor")
         self.add_class("p-2")
         self.add_class("font-monospace")
-
-        self.log("__init__", f"monitor {self.Name} created")
+        # 🔹 НОВОЕ: дополнительные css-классы темы
+        # только имена классов, без inline-стилей
+        self.screen_class: str = ""  # фон / рамка “экрана”
+        self.font_class: str = ""  # цвет / стиль текста
 
     def render(self):
-        """
-        Рисуем внутренний <pre>, который будет получать данные по WebSocket.
-        Все data-* атрибуты используются только фронтендом.
-        """
-        # собираем data-* атрибуты для привязки
-        attr_parts: list[str] = []
+        # базовые классы <pre>
+        cls = ["tc-monitor-body"]          # 🔹 ключевой класс для JS
+        cls.extend(self.classes)           # tc-monitor, p-2, font-monospace и т.п.
 
-        # из миксина TwsSubscriberMixin: data-tws-channel / data-tws-type
-        if hasattr(self, "get_tws_attrs"):
-            tws_attrs = (self.get_tws_attrs() or "").strip()
-            if tws_attrs:
-                attr_parts.append(tws_attrs)
+        # темы
+        if getattr(self, "screen_class", ""):
+            cls.append(self.screen_class)
+        if getattr(self, "font_class", ""):
+            cls.append(self.font_class)
 
-        # режим работы и лимит строк — чисто фронтовые параметры
-        attr_parts.append(f"data-tws-mode='{self.mode}'")
-        attr_parts.append(f"data-tws-max='{int(self.max_lines)}'")
+        # атрибуты для ws-скрипта
+        attrs = [
+            f"data-tws-channel='{self.channel}'",
+            f"data-tws-type='{self.type}'",
+            f"data-tws-mode='{self.mode}'",
+            f"data-tws-max='{self.max_lines}'",
+        ]
 
-        attr_str = " ".join(attr_parts).strip() or None
+        # если хочешь — можно добавить ещё get_tws_attrs() из TwsSubscriberMixin
+        # attrs.append(self.get_tws_attrs())
 
-        # корень уже открыт в _render() (div.monitor),
-        # здесь рисуем только <pre> как тело монитора
-        self.tg("pre", cls="tc-monitor-body", attr=attr_str)
-        # стартовое содержимое оставляем пустым — всё придёт из WS
+        self.tg(
+            "pre",
+            cls=" ".join(cls),
+            attr=" ".join(attrs),
+        )
+        # контент оставляем пустым — его заполнит JS
         self.etg("pre")
+# ----------------------------------------------------------------------------------------------------------------------
+# 🧩 TCardMonitor
+# ----------------------------------------------------------------------------------------------------------------------
+class TCardMonitor(TCard):
+    prefix = "card_mon"
+    MARK_FAMILY = "card"
+    MARK_LEVEL = 0
+    """
+    Карточка-монитор:
+      • header: иконка, title, sub_title, статус-бейдж, кнопка "Send event"
+      • body: TMonitor (ws: channel/type)
+    """
+    def do_init(self):
+        super().do_init()
+        self.f_channel: str = ""
+        self.f_type: str = ""
+        self.f_mode: str = ""
+        self.f_max_lines: int = 0
+        self.f_screen_class: str = ""
+        self.f_font_class: str = ""
+        # --- шапка карточки ---
+        self.header.type = "ptHeader"          # чтобы _auto_header_compose отработал
+        self.icon = "📡"                       # прокидывается в Header.icon
+        self.sub_title = f"{self.channel}:{self.type}"
+
+        # небольшая метка для css
+        self.add_class("tc-card-monitor")
+
+        # --- тело: сам текстовый монитор ---
+        td = self.body.active_control                   # первая колонка body
+        self.monitor = TMonitor(td, "Monitor")
+        # 🔹 дефолтные классы темы монитора
+        self.channel = "log"
+        self.type = "log_line"
+        self.mode = "append"
+        self.max_lines = 20
+        self.screen_class = "tc-monitor-screen-dark"
+        self.font_class = "tc-monitor-font-default"
+        # чтобы body не подсовывал default-текст
+        # (если у тебя в TCard уже есть _body_has_content, этого может быть достаточно)
+        # здесь мы явно гарантируем, что в Flow что-то есть — сам monitor
+
+        # --- header.right_td: статус + кнопка ---
+        from bb_ctrl_atom import TBadge, TButton
+
+        # статус-бейдж (пока статично ONLINE)
+        self.status_badge = TBadge(self.header.right_td, "StatusBadge")
+        self.status_badge.caption = "ONLINE"
+        self.status_badge.kind = "green"      # bg-green / text-green-fg
+        self.status_badge.style = "lt sm"     # лёгкий вариант + маленький
+        self.status_badge.add_class("tc-monitor-status")
+        self.status_badge.add_attr("data-tws-status")
+        # кнопка "Send event"
+        self.send_button = TButton(self.header.right_td, "SendEvent")
+        self.send_button.caption = "Send event"
+        self.send_button.kind = "primary"
+        self.send_button.style = "sm"
+        self.send_button.href = "#"           # клики будет перехватывать JS
+        self.send_button.add_class("ms-2")    # небольшой отступ слева
+
+        # payload для WebSocket: положим в data-tws-send
+        # (см. патч TButton ниже)
+        self.send_button.extra_attr = "data-tws-send='{\"cmd\":\"ping\"}'"
+    # 🔹 channel
+    @property
+    def channel(self) -> str:
+        return self.f_channel
+
+    @channel.setter
+    def channel(self, value: str):
+        self.f_channel = str(value or "")
+        # обновляем подзаголовок
+        self.sub_title = f"{self.f_channel}/{self.f_type}"
+        if getattr(self, "monitor", None):
+            self.monitor.channel = self.f_channel
+
+    # 🔹 type
+    @property
+    def type(self) -> str:
+        return self.f_type
+
+    @type.setter
+    def type(self, value: str):
+        self.f_type = str(value or "")
+        self.sub_title = f"{self.f_channel}/{self.f_type}"
+        if getattr(self, "monitor", None):
+            self.monitor.type = self.f_type
+    # 🔹 mode
+    @property
+    def mode(self) -> str:
+        return self.f_mode
+
+    @mode.setter
+    def mode(self, value: str):
+        self.f_mode = str(value or "")
+        if getattr(self, "monitor", None):
+            self.monitor.mode = self.f_mode
+
+    # 🔹 max_lines
+    @property
+    def max_lines(self) -> int:
+        return self.f_max_lines
+
+    @max_lines.setter
+    def max_lines(self, value: int):
+        try:
+            self.f_max_lines = int(value)
+        except Exception:
+            self.f_max_lines = 0
+        if getattr(self, "monitor", None):
+            self.monitor.max_lines = self.f_max_lines
+    # 🔹 Внешнее API: цвет/стиль экрана и шрифта
+    @property
+    def screen_class(self) -> str:
+        """CSS-класс, задающий фон/рамку экрана монитора."""
+        return self.f_screen_class
+
+    @screen_class.setter
+    def screen_class(self, value: str):
+        self.f_screen_class = str(value or "")
+        if getattr(self, "monitor", None):
+            self.monitor.screen_class = self.f_screen_class
+
+    @property
+    def font_class(self) -> str:
+        """CSS-класс, задающий цвет/стиль текста в мониторе."""
+        return self.f_font_class
+
+    @font_class.setter
+    def font_class(self, value: str):
+        self.f_font_class = str(value or "")
+        if getattr(self, "monitor", None):
+            self.monitor.font_class = self.f_font_class
 # ======================================================================================================================
-# 📁🌄 bb_ctrl_base.py 🜂 The End — See You Next Session 2025 💹 188 -> 1755 -> 2088 -> 775 -> 979 -> 851
+# 📁🌄 bb_ctrl_base.py 🜂 The End — See You Next Session 2025 💹 188 -> 1755 -> 2088 -> 775 -> 979 -> 851 - 1065
 # ======================================================================================================================
 
 

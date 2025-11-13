@@ -30,7 +30,6 @@ class TLayout(TCompositeControl):
             # ... 🔊...
             app.log("register_global", f"📐 Layout registered: {self.Name}")
         # ⚡🛠️ TLayout ▸ End of do_init()
-
     def structural_children(self) -> tuple["TCompositeControl", ...]:
         # header/footer — служебные, всё остальное — "контент"
         return tuple(
@@ -96,17 +95,16 @@ class TLayout(TCompositeControl):
 # ----------------------------------------------------------------------------------------------------------------------
 class TPage(TCompositeControl):
     prefix = "pg"
-
-    def __init__(self, Owner=None, Name: str | None = None):
-        super().__init__(Owner, Name)
+    # 💎 NAME_SCOPE_ROOT - корень пронстранства имен для контролов
+    NAME_SCOPE_ROOT = True
+    # ⚡🛠️ ▸ do_init()
+    def do_init(self):
         self.title = self.Name
         self.layout = "default"
         app = self.app()
         if app:
             app.Pages[self.Name] = self
             app.log("register_global", f"📐 Page registered: {self.Name}")
-        self.log("__init__", f"⚙️ page {self.Name} created uid={self.uid}")
-
     # корневой тег страницы — div
     def root_tag(self) -> str:
         return "div"
