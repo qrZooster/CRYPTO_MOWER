@@ -69,6 +69,7 @@ class TlySysControl(TLayout):
         self.header.etg("a")
         pnl = panel(self, "PanelTop")
         lbl = label(pnl, "Test")
+        pnl.td()
     # ---
     def render_footer(self):
         self.footer.tg("div", cls="container text-center text-muted small")
@@ -231,6 +232,8 @@ class TpgMain(TPage):
         mon.font_class = "tc-mon-font-amber"
 
         crd = TCard(self)
+        crd.td()
+        #label(crd, "SuperText!))")
         self.render_children()
 # ----------------------------------------------------------------------------------------------------------------------
 # 🧩 TpgDatabase — Управление базой данных

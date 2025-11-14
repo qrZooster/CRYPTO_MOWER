@@ -139,7 +139,7 @@ class TGrid(TCompositeControl):
         """
         Рендерим строки грида по порядку.
         В debug-режиме перед рендером проставляем place_holder
-        для пустых ячеек:
+        и пунктирную рамку для пустых ячеек:
 
             • если строка одна  → Grid1.td(c)
             • если строк > 1    → Grid1.tr(r).td(c)
@@ -154,39 +154,41 @@ class TGrid(TCompositeControl):
         rows_count = len(self.Rows)
 
         if dbg and rows_count:
-            base_name = self.Name
+            #base_name = self.Name
             for r, row in enumerate(self.Rows):
                 cells = getattr(row, "Tds", [])
                 for c, cell in enumerate(cells):
-                    # рамка и класс вокруг каждой debug-ячейки
+                    # debug-класс для каждой ячейки
                     if hasattr(cell, "add_class"):
                         cell.add_class(tc_dbg_class("cell"))
-
-                    # если в ячейке уже есть контент — плейсхолдер не нужен
+                    # содержимое ячейки
                     flow = getattr(cell, "Flow", [])
+                    # если в ячейке уже есть контент — плейсхолдер и скелет не нужны
                     if flow:
+                        # на всякий случай уберём старый плейсхолдер, если он был
+                        if hasattr(cell, "place_holder"):
+                            cell.place_holder = None
                         continue
-
+                    # пустая ячейка: включаем "скелет" — рамка + подпись
+                    if hasattr(cell, "add_style"):
+                        cell.add_style("border:1px dashed rgba(160,160,160,0.6);")
                     # подпись по протоколу
-                    if rows_count == 1:
-                        label = f"{base_name}.td({c})"
-                    else:
-                        label = f"{base_name}.tr({r}).td({c})"
-
-                    setattr(cell, "place_holder", label)
-
+                    label = self._placeholder_label(r, c, rows_count)
+                    cell.place_holder = label
         # обычный рендер строк
         for row in self.Rows:
             row._render()
             self.Canvas.extend(row.Canvas)
-    # ..................................................................................................................
-    # 🔰 mark* (подсветка debug-семейства)
-    # ..................................................................................................................
-    def _mark_family(self) -> str | None:
-        return "grid"
 
-    def _mark_level(self) -> int:
-        return 0
+    def _placeholder_label(self, r: int, c: int, rows_count: int) -> str:
+        """
+        Текст плейсхолдера для пустой ячейки в debug-режиме.
+        Базовая реализация: имя самого грида.
+        """
+        base_name = getattr(self, "Name", "") or self.__class__.__name__
+        if rows_count == 1:
+            return f"{base_name}.td({c})"
+        return f"{base_name}.tr({r}).td({c})"
     # ..................................................................................................................
     # 🛡️ PHASE 2: политика владения
     # ..................................................................................................................
@@ -324,75 +326,25 @@ class TGrid_Td(TFlex_Td):
     def _allowed_child_types(self) -> tuple[type, ...] | None:
         return (TCustomControl,)
 # ----------------------------------------------------------------------------------------------------------------------
-# 🧩 TPanel — универсальная панель (flex-row)
+# 🧩 TPanel — универсальная панель (однострочный grid)
 # ----------------------------------------------------------------------------------------------------------------------
-class TPanel(TPlaceholderMixin, TFlex_Tr):
+class TPanel(TGrid):
     prefix = "pnl"
     MARK_FAMILY = "panel"
-    MARK_LEVEL = 0
-
-    def do_init(self):
-        """
-        Универсальная панель (flex-row).
-        - базовая строка с колонками: TFlex_Tr.do_init() создаёт Tds и td(0)
-        - в debug-режиме в первую колонку вешаем placeholder-лейбл по имени панели
-        """
-        TFlex_Tr.do_init(self)
-
-        app = None
-        try:
-            app = self.app()
-        except Exception:
-            app = None
-
-        if app and getattr(app, "debug_mode", False):
-            first_td = self.Tds[0] if getattr(self, "Tds", None) else None
-            if first_td is not None:
-                border_frag = "border:1px dashed rgba(160,160,160,0.6);"
-
-                # рамка остаётся на самой панели, как раньше
-                self.add_style(border_frag)
-
-                # а текст плейсхолдера теперь ведёт сама ячейка
-                first_td.place_holder = getattr(self, "Name", "") or ""
-    # ..................................................................
-    # 🔁 уведомление от колонок
-    # ..................................................................
-    def _notify_child_content(self, td: "TFlex_Td"):
-        """
-        Любое живое содержимое в любой колонке панели —
-        повод снять placeholder/скелет (если он ещё есть).
-        """
-        self._disable_placeholder_if_needed()
-    # ..................................................................
-    # 🔰 mark* methods
-    # ..................................................................
-    def _mark_family(self) -> str | None:
-        return "panel"
-
-    def _mark_level(self) -> int:
-        return 0
-
-    def _child_mark_level(self) -> int:
-        return 1
-    # ..................................................................
-    # 🛡️ PHASE 2: политика владения
-    # ..................................................................
-    def _owner_required(self) -> bool:
-        return True
-
-    def _allowed_owner_types(self) -> tuple[type, ...] | None:
-        return (TCustomControl,)
-
-    def _allowed_child_types(self) -> tuple[type, ...] | None:
-        return (TFlex_Td, TCustomControl)
     # 🔒 ЯВНЫЙ ЗАПРЕТ попыток работать со строками, как в гриде
-    def tr(self, *args, **kwargs):
+    def tr(self, index: int | None = None) -> "TGrid_Tr":
         """
         Панель — это одна строка.
-        Любая попытка создать вторую строку через tr()
-        считается ошибкой дизайна: использовать TGrid.
+        Единственный допустимый вызов:
+        - tr() при отсутствии строк (первый вызов из TGrid.do_init)
+
+        Всё остальное — ошибка дизайна: использовать TGrid.
         """
+        rows = getattr(self, "Rows", [])
+        # TGrid.do_init() первый раз вызывает tr() без индекса — создаём единственную строку
+        if index is None and not rows:
+            return super().tr(None)  # type: ignore[return-value]
+        # любые другие сценарии считаем нарушением контракта панели
         self.fail(
             "tr",
             "TPanel is single-row layout. Use TGrid for multiple rows."
@@ -534,14 +486,6 @@ class TCardPanel(TFlex_Tr, TIconMixin, TCaptionMixin):
         self.right_td.add(item)
         return self
     # ..................................................................................................................
-    # 🔰 mark* methods
-    # ..................................................................................................................
-    def _mark_family(self) -> str | None:
-        return "card"
-
-    def _mark_level(self) -> int:
-        return 1
-    # ..................................................................................................................
     # 🛡️ PHASE 2: политика владения
     # ..................................................................................................................
     def _owner_required(self) -> bool:
@@ -577,16 +521,21 @@ class TCardBody(TGrid):
     def get_active_control(self) -> "TCustomControl":
         """ Активная ячейка тела карточки. """
         return self.Rows[-1].Tds[-1]
-    # debug-семейство: это часть карточки
-    def _mark_family(self) -> str | None:
-        return "card"
 
-    def _mark_level(self) -> int:
-        return 1
+    def _placeholder_label(self, r: int, c: int, rows_count: int) -> str:
+        """
+        Для тела карточки плейсхолдер должен ссылаться на карточку:
+        Card3.td(0) / Card3.tr(r).td(c)
+        """
+        owner = getattr(self, "Owner", None)
+        base_name = getattr(owner, "Name", None) or getattr(self, "Name", "") or self.__class__.__name__
+        if rows_count == 1:
+            return f"{base_name}.td({c})"
+        return f"{base_name}.tr({r}).td({c})"
 # ----------------------------------------------------------------------------------------------------------------------
 # 🧩 TCard — карточка с header / body / footer (базовый каркас Tradition Core)
 # ----------------------------------------------------------------------------------------------------------------------
-class TCard(TIconMixin, TPlaceholderMixin, TCompositeControl):
+class TCard(TIconMixin, TCompositeControl):
     prefix = "card"
     MARK_FAMILY = "card"
     MARK_LEVEL = 0
@@ -639,7 +588,7 @@ class TCard(TIconMixin, TPlaceholderMixin, TCompositeControl):
         """
         raw = getattr(self, "f_title", "<none>")
         if raw == "<none>":
-            return f"title:{self.Name}"
+            return f"{self.Name}.title"
         return raw or ""
 
     @title.setter
@@ -692,7 +641,7 @@ class TCard(TIconMixin, TPlaceholderMixin, TCompositeControl):
     def td(self, index: int | None = None):
         return self.body.td(index)
     # ..................................................................................................................
-    # 🔧 Перехват регистрации детей: всё не header/body/footer → в body
+    # 🛡️ PHASE 2: политика владения. Перехват регистрации детей: всё не header/body/footer → в body
     # ..................................................................................................................
     def structural_children(self) -> tuple["TCustomControl", ...]:
         # header/footer — служебные, всё остальное — "контент"
@@ -703,17 +652,7 @@ class TCard(TIconMixin, TPlaceholderMixin, TCompositeControl):
                 getattr(self, "footer", None),
             ) if c is not None
         )
-    # ..................................................................................................................
-    # mark() / debug family hooks
-    # ..................................................................................................................
-    def _mark_family(self) -> str | None:
-        # семейство, которое участвует в подсветке и палитре
-        return "card"
-
-    def _mark_level(self) -> int:
-        # карточка — корневой объект своего семейства
-        return 0
-
+    # ---
     def _child_mark_level(self) -> int:
         # её внутренние flex-панели (header/footer панельки) помечаем уровнем 1
         return 1
@@ -1060,7 +999,7 @@ class TCardMonitor(TCard):
         if getattr(self, "monitor", None):
             self.monitor.font_class = self.f_font_class
 # ======================================================================================================================
-# 📁🌄 bb_ctrl_base.py 🜂 The End — See You Next Session 2025 💹 188 -> 1755 -> 2088 -> 775 -> 979 -> 851 - 1065
+# 📁🌄 bb_ctrl_base.py 🜂 The End — See You Next Session 2025 💹 188 -> 1755 -> 2088 -> 775 -> 979 -> 851 -> 1002
 # ======================================================================================================================
 
 
