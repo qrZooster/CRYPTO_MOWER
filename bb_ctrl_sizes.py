@@ -4,13 +4,13 @@
 # 🎉 contains    : TSizeMixin - управление общей геометрией контрола
 # 🌅 project     : Tradition Core 2025 🜂
 # ======================================================================================================================
+# 🚢 ...imports...
 import re
-from bb_ctrl_custom import *
-# Ожидается, что где-то снаружи определено:
-# ATOM_SIZES = ("xs", "sm", "md", "lg", "xl")
+# 💎 --- ATOM_SIZES ---
+ATOM_SIZES: tuple[str, ...] = ("xs", "sm", "md", "lg", "xl")
 # 💎🧩⚙️ ... __ALL__ ...
 __all__ = ["TSizeMixin",
-           "CARD_SIZE_CFG", "GRID_ROW_SIZE_CFG", "GRID_CELL_SIZE_CFG",
+           "CARD_SIZE_CFG", "GRID_ROW_SIZE_CFG", "GRID_CELL_SIZE_CFG", "ATOM_SIZES",
            "CardSizeCfg", "GridRowSizeCfg", "GridCellSizeCfg"]
 # ----------------------------------------------------------------------------------------------------------------------
 # 🧪 TSizeMixin — миксин логического размера (xs..xl)
