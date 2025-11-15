@@ -482,7 +482,22 @@ class TCustomControl(TComponent):
 
         class_txt = " ".join(c for c in class_list if c) or None
 
-        style_txt = " ".join(s for s in self.styles if s)
+        style_entries = list(self.styles)
+        geometry_box = None
+        if hasattr(type(self), "box_style"):
+            try:
+                geometry_box = getattr(self, "box_style", None)
+            except Exception:
+                geometry_box = None
+        if isinstance(geometry_box, dict) and geometry_box:
+            for prop, value in geometry_box.items():
+                if not value:
+                    continue
+                prefix = f"{prop}:"
+                style_entries = [s for s in style_entries if not s.strip().startswith(prefix)]
+                style_entries.append(f"{prop}:{value};")
+
+        style_txt = " ".join(s for s in style_entries if s)
 
         # meta-атрибуты остаются под `tc-*`
         attr_parts = []

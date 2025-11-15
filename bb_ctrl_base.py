@@ -17,6 +17,10 @@ from bb_ctrl_sizes import *
 from datetime import datetime
 # 💎🧩⚙️ ... __ALL__ ...
 __all__ = ["TGrid", "TPanel", "TCard", "TMenu", "TMonitor", "TCardMonitor"]
+
+
+def _grid_size_tokens(prefix: str) -> tuple[str, ...]:
+    return tuple(f"{prefix}-{tok}" for tok in ATOM_SIZES)
 # ----------------------------------------------------------------------------------------------------------------------
 # 🧩 TGrid — каркас страницы / секции (flex-column из строк)
 # ----------------------------------------------------------------------------------------------------------------------
@@ -51,6 +55,27 @@ class TGrid(TSizeMixin, TCompositeControl):
 
         # создаём первую строку по умолчанию
         self.tr()  # row 0 с уже готовой td(0) внутри
+
+    def _apply_size_classes(self) -> None:
+        for token in _grid_size_tokens("grid"):
+            self.remove_class(token)
+        self.add_class(f"grid-{self.size}")
+
+    def _sync_structure_sizes(self) -> None:
+        for row in getattr(self, "Rows", []):
+            if row is None:
+                continue
+            if getattr(row, "_size_inherited", True) and hasattr(row, "_inherit_size"):
+                row._inherit_size(self.size)
+            if hasattr(row, "_apply_row_size_classes"):
+                row._apply_row_size_classes()
+            for cell in getattr(row, "Tds", []):
+                if cell is None:
+                    continue
+                if getattr(cell, "_size_inherited", True) and hasattr(cell, "_inherit_size"):
+                    cell._inherit_size(row.size)
+                if hasattr(cell, "_apply_cell_size_classes"):
+                    cell._apply_cell_size_classes()
     # ..........................................................
     # 🔹 active_control: последняя строка / её активная ячейка
     # ..........................................................
@@ -145,6 +170,9 @@ class TGrid(TSizeMixin, TCompositeControl):
             • если строка одна  → Grid1.td(c)
             • если строк > 1    → Grid1.tr(r).td(c)
         """
+        self._apply_size_classes()
+        self._sync_structure_sizes()
+
         app = None
         try:
             app = self.app()
@@ -261,10 +289,28 @@ class TGrid_Tr(TSizeMixin, TFlex_Tr):
         self.height: str = "auto"
         if self.height and self.height != "auto":
             self.add_style(f"height:{self.height};")
+        self._size_inherited: bool = True
+        self._size_inherit_lock: bool = False
 
     @property
     def _row_size_cfg(self) -> GridRowSizeCfg:
         return GRID_ROW_SIZE_CFG[self.size]
+
+    def _inherit_size(self, size_token: str) -> None:
+        self._size_inherit_lock = True
+        try:
+            self.size = size_token
+        finally:
+            self._size_inherit_lock = False
+
+    def on_size_changed(self, old_size: str, new_size: str) -> None:
+        super().on_size_changed(old_size, new_size)
+        self._size_inherited = bool(self._size_inherit_lock)
+
+    def _apply_row_size_classes(self) -> None:
+        for token in _grid_size_tokens("grid-tr"):
+            self.remove_class(token)
+        self.add_class(f"grid-tr-{self.size}")
     # ..................................................................................................................
     # 🔳 Работа с ячейками (совместимость c API грида)
     # ..................................................................................................................
@@ -319,10 +365,28 @@ class TGrid_Td(TSizeMixin, TFlex_Td):
         super().do_init()
         # --- Основные параметры td ---
         self.width: str = "auto"
+        self._size_inherited: bool = True
+        self._size_inherit_lock: bool = False
 
     @property
     def _cell_size_cfg(self) -> GridCellSizeCfg:
         return GRID_CELL_SIZE_CFG[self.size]
+
+    def _inherit_size(self, size_token: str) -> None:
+        self._size_inherit_lock = True
+        try:
+            self.size = size_token
+        finally:
+            self._size_inherit_lock = False
+
+    def on_size_changed(self, old_size: str, new_size: str) -> None:
+        super().on_size_changed(old_size, new_size)
+        self._size_inherited = bool(self._size_inherit_lock)
+
+    def _apply_cell_size_classes(self) -> None:
+        for token in _grid_size_tokens("grid-td"):
+            self.remove_class(token)
+        self.add_class(f"grid-td-{self.size}")
     # ..................................................................................................................
     # 🛡️ Политика владения
     # ..................................................................................................................
