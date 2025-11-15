@@ -1,51 +1,62 @@
-# bb_scan_9.py — SCAN v9
-# Refactored for Application / Module architecture
-# 2025-10-12 15:35 / Учитель & GPT-5
-
+# ======================================================================================================================
+# 📁 file        : bb_scan_9.py — SCAN v9 (REST tick buffer + WS tick detector)
+# 🕒 created     : 29.10.2025 09:50
+# 🎉 contains    : TmodScan9 (REST+WS module), main() launcher
+# 🌅 project     : Tradition Core 2025 🜂
+# ======================================================================================================================
+# 🚢 ...imports...
 from collections import defaultdict, deque
-import time
+import datetime as dt
 import json
 import threading
-import datetime as dt
+import time
 import urllib.request
 
 from bb_sys import *
 from bb_db import *
 from bb_ws import *
+# 💎 ... CONFIG / CONSTS ...
+SCAN_CANDLES_TABLE = "ZZ$CANDLES"
+SCAN_DEFAULT_MAX_SYMBOLS = 10
+SCAN_POLL_INTERVAL_S = 60
+SCAN_FLUSH_INTERVAL_S = 30
+SCAN_BUFFER_MAXLEN = 150
 
+# ----------------------------------------------------------------------------------------------------------------------
+# 🧩 TmodScan9 — SCAN v9: REST loader + WS tick detector + DB flusher
+# ----------------------------------------------------------------------------------------------------------------------
 class TmodScan9(TModule):
-    """
-    SCAN v9 — первый рабочий модуль на архитектуре Delphi.2025
-    - REST-загрузка списка символов
-    - Буфер свечей (deque, maxlen=150)
-    - Детектор тиков (на уровне close)
-    - Flusher: запись последних свечей в БД через qr_foi
-    """
+    """SCAN v9 — REST-сбор символов + минутные свечи + TickDetector через WebSocket."""
 
-    # таблица для записи свечей (можно вынести в конфиг)
-    TBL_CANDLES = 'ZZ$CANDLES'
-
-    # параметры опроса
-    MAX_SYMBOLS      = 10     # ограничение на кол-во символов для теста
-    POLL_INTERVAL_S  = 60     # период опроса REST-свечей
-    FLUSH_INTERVAL_S = 30     # период записи в БД
-
+    TBL_CANDLES = SCAN_CANDLES_TABLE
+    MAX_SYMBOLS = SCAN_DEFAULT_MAX_SYMBOLS
+    POLL_INTERVAL_S = SCAN_POLL_INTERVAL_S
+    FLUSH_INTERVAL_S = SCAN_FLUSH_INTERVAL_S
+    CANDLE_BUFFER_MAXLEN = SCAN_BUFFER_MAXLEN
+    # ⚡🛠️ ▸ __init__
     def __init__(self, app):
+        """Регистрирует модуль SCAN_9, настраивает буферы и потоки фоновой обработки."""
         super().__init__(app, "SCAN", 9)
-
-        # состояние модуля
+        # --- Runtime state ---
         self.symbols: list[str] = []
-        self.candles: dict[str, deque] = defaultdict(lambda: deque(maxlen=150))
+        self.candles: dict[str, deque] = defaultdict(
+            lambda: deque(maxlen=self.CANDLE_BUFFER_MAXLEN)
+        )
         self.last_price: dict[str, float] = defaultdict(lambda: None)
+        # --- Background services ---
         self._stop = False
         self._flush_thread = None
+        self.ws = None
+        self.tick_detector = None
+        # ... 🔊 ...
         self.log("__init__", "module initialized")
+        # ⚡🛠️ TmodScan9 ▸ End of __init__
 
-    # ------------------------------------------------------------------
-    # REST: загрузка списка символов
-    # ------------------------------------------------------------------
+    # ..................................................................................................................
+    # 🌐 REST — загрузка списка символов
+    # ..................................................................................................................
     def load_symbols(self) -> list[str]:
-        """Берём список линейных инструментов Bybit и фильтруем по *USDT."""
+        """Берёт список линейных инструментов Bybit и фильтрует по *USDT."""
         url = f"{BYBIT_REST}/v5/market/instruments-info?category=linear"
         try:
             with urllib.request.urlopen(url, timeout=10) as resp:
@@ -61,16 +72,15 @@ class TmodScan9(TModule):
             self.log("load_symbols", f"⚠️ failed: {e}")
             return []
 
-    # ------------------------------------------------------------------
-    # REST: опрос минутных свечей и наполнение локального буфера
-    # ------------------------------------------------------------------
+    # ..................................................................................................................
+    # 🌐 REST — опрос минутных свечей и буферизация
+    # ..................................................................................................................
     def update_candles(self, symbol: str):
-        """Загружает минутные свечи (interval=1) и добавляет в буфер."""
+        """Загружает минутные свечи (interval=1) и добавляет их в локальный буфер."""
         url = f"{BYBIT_REST}/v5/market/kline?category=linear&symbol={symbol}&interval=1"
         try:
             with urllib.request.urlopen(url, timeout=8) as resp:
                 data = json.loads(resp.read().decode())
-
             items = (data or {}).get("result", {}).get("list", []) or []
             for row in items:
                 if not isinstance(row, (list, tuple)) or len(row) < 6:
@@ -86,23 +96,19 @@ class TmodScan9(TModule):
                     "volume": float(v),
                 }
                 self.candles[symbol].append(candle)
-
-            # Tick detector: изменение close
             if self.candles[symbol]:
                 last_close = self.candles[symbol][-1]["close"]
                 prev_close = self.last_price[symbol]
                 if prev_close is None or last_close != prev_close:
                     self.last_price[symbol] = last_close
                     self.log("tick", f"{symbol} close={last_close}")
-
             self.log("update_candles", f"{symbol}: {len(self.candles[symbol])} buffered")
-
         except Exception as e:
             self.log("update_candles", f"⚠️ {symbol}: {e}")
 
-    # ------------------------------------------------------------------
-    # Flusher: периодическая запись последних свечей в БД
-    # ------------------------------------------------------------------
+    # ..................................................................................................................
+    # 💾 Flusher — периодическая запись последних свечей в БД
+    # ..................................................................................................................
     def flusher(self):
         """Раз в FLUSH_INTERVAL_S записывает последнюю свечу каждого символа в БД."""
         app = self.owner
@@ -134,33 +140,25 @@ class TmodScan9(TModule):
                 self.log("flusher", f"⚠️ {e}")
             time.sleep(self.FLUSH_INTERVAL_S)
 
-    # ------------------------------------------------------------------
-    # Lifecycle
-    # ------------------------------------------------------------------
+    # ..................................................................................................................
+    # 🚀 Lifecycle — open/heartbeat/close
+    # ..................................................................................................................
     def do_open(self) -> bool:
         """Основной запуск модуля SCAN_9."""
         self.log("do_open", "starting WS tick scan...")
-
-        # 1) Диагностика среды
         app = self.owner
         self.log("do_open", f"Active project: {app.project_tag}")
         self.log("do_open", f"Session active: {app.Session.active}")
         self.log("do_open", f"Database active: {app.Database.active}")
         self.log("do_open", f"Config vars loaded: {len(app.Config.env)}")
-
-        # 2) Загрузка списка символов
         self.symbols = self.load_symbols()
         if not self.symbols:
             self.log("do_open", "⚠️ no symbols loaded — exiting do_open()")
             return False
         self.log("do_open", f"{len(self.symbols)} symbols ready for WS subscription")
-
-        # 3) Инициализация тик-детектора
         self.tick_detector = TTickDetector(self)
         self.tick_detector.bus.subscribe("tick_spike", db_signal_writer)
         self.log("do_open", "TickDetector and SignalBus initialized")
-
-        # 4) Подключение WebSocket
         try:
             self.ws = TBybitWS(self, self.symbols, self.tick_detector.feed)
             self.ws.open()
@@ -168,13 +166,12 @@ class TmodScan9(TModule):
         except Exception as e:
             self.log("do_open", f"⚠️ failed to start WebSocket: {e}")
             return False
-
-        # 5) Цикл heartbeat
         threading.Thread(target=self._heartbeat_loop, daemon=True).start()
         self._flush_thread = threading.Thread(target=self.flusher, daemon=True)
         self._flush_thread.start()
         return True
 
+    # --- Heartbeat монитор ---
     def _heartbeat_loop(self):
         while not self._stop:
             ws_state = getattr(self.ws, "_connected", False)
@@ -185,30 +182,25 @@ class TmodScan9(TModule):
         """Завершает работу SCAN_9."""
         self._stop = True
         self.log("do_close", "stopping background threads...")
-
         try:
             if self.ws:
                 self.ws.close()
         except Exception as e:
             self.log("do_close", f"⚠️ ws close error: {e}")
-
-        # дождаться завершения flusher
         th = self._flush_thread
         if th and th.is_alive():
             try:
                 th.join(timeout=5)
             except Exception:
                 pass
-
         self.log("do_close", "module stopped gracefully")
         return True
 
-# ==============================================================
-#   MAIN ENTRY POINT
-# ==============================================================
-
+# ----------------------------------------------------------------------------------------------------------------------
+# 🚀 main() — автономный запуск SCAN v9
+# ----------------------------------------------------------------------------------------------------------------------
 def main():
-    app = Application()          # создаёт Database, Session, Config
+    app = Application()
     app.echo('Hello world!))')
     app.echo("🧠 TSchema initialized")
     app.echo("<b>Loaded:</b> 37 tables")
@@ -229,16 +221,18 @@ def main():
     s += "</table>"
     app.echo(s)
     mod = TmodScan9(app)
-    mod.open()                    # активирует модуль
+    mod.open()
     try:
-        # держим процесс живым, пока systemd не пришлёт SIGTERM
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
         pass
     finally:
-        mod.close()               # корректно остановить модуль
-        CloseApplication()       # graceful shutdown
+        mod.close()
+        CloseApplication()
 
 if __name__ == '__main__':
     main()
+# ======================================================================================================================
+# 📁🌄 bb_scan_9.py 🜂 The End — See You Next Session 2025 💹 Tradition Core 2025.10
+# ======================================================================================================================
