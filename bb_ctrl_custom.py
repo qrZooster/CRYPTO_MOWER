@@ -1020,6 +1020,15 @@ class TFlex_Td(TCompositeControl):
     # ..................................................................................................................
     # 🎨 Render
     # ..................................................................................................................
+    def _render(self):
+        """
+        Переопределённый рендер-обёртка:
+        сначала подстраиваем flex под фиксированную ширину, потом используем
+        стандартный механизм TCustomControl._render().
+        """
+        self._apply_fixed_width_flex()
+        super()._render()
+
     def render(self):
         """
         _render() уже открыл мой корневой <div id='flex_td-*' ...> и после возврата из render() сам его закроет.
@@ -1049,6 +1058,35 @@ class TFlex_Td(TCompositeControl):
                 self.Canvas.extend(node.Canvas)
             else:
                 self.text(str(node))
+
+    def _apply_fixed_width_flex(self) -> None:
+        """
+        Если для ячейки явно задана ширина (width) или min-width (width_min),
+        то:
+          - снимаем flex-grow-1, чтобы колонка не растягивалась,
+          - при наличии width задаём flex: 0 0 <width>.
+        """
+        width = getattr(self, "f_width", None)
+        min_width = getattr(self, "f_min_width", None)
+
+        # если ни width, ни width_min не заданы — ничего не делаем
+        if width is None and min_width is None:
+            return
+
+        # 1) убираем авто-растяжение
+        if hasattr(self, "classes") and "flex-grow-1" in self.classes:
+            self.classes.remove("flex-grow-1")
+
+        # 2) если есть явный width — задаём flex:0 0 <width>
+        if width is not None:
+            current_styles = list(getattr(self, "styles", []))
+            # убираем предыдущие flex: ...
+            filtered = [
+                s for s in current_styles
+                if not s.strip().startswith("flex:")
+            ]
+            filtered.append(f"flex:0 0 {width};")
+            self.styles = filtered
     # ..................................................................................................................
     # 🔰 mark* methods
     # ..................................................................................................................

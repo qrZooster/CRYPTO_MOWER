@@ -18,26 +18,23 @@ __all__ = ["TSizeMixin",
 class TSizeMixin:
     """
     Миксин для логического размера и базовой геометрии визуального контрола.
-
     1) Логический размер:
        - size: один из ATOM_SIZES ('xs', 'sm', 'md', 'lg', 'xl')
        - хранится в self.f_size
        - по умолчанию 'md', даже если f_size == None или мусор
-
     2) Геометрия (layout):
        - top/left/right/bottom: '10px' | '5%' | 'auto'
          хранятся в self.f_top / f_left / f_right / f_bottom
        - width/height: 'auto' | '100px' | '50%' | 'calc(...)'
          хранятся в self.f_width / self.f_height
-
     3) Утилиты:
        - _size_idx(): индекс текущего размера в ATOM_SIZES
        - inc_size()/dec_size(): инкремент/декремент размера по шкале
        - box_style: dict со всеми заданными top/left/right/bottom/width/height
     """
-
-    # ---------- ЛОГИЧЕСКИЙ РАЗМЕР (как у тебя было) ----------
-
+    # ..................................................................................................................
+    # 📐 SIZE: setter / getter / inc_size() / dec_size()
+    # ..................................................................................................................
     @property
     def size(self) -> str:
         """
@@ -73,10 +70,6 @@ class TSizeMixin:
             return
 
         self.f_size = s
-
-    def on_size_changed(self, old_size: str, new_size: str) -> None:
-        """Хук для наследников. По умолчанию ничего не делает."""
-        return
 
     def _size_idx(self) -> int:
         """
@@ -330,9 +323,9 @@ class TSizeMixin:
             self.f_max_height = None
         else:
             self.f_max_height = self._normalize_dimension(value)
-
-    # ---------- helper: dict стилей ----------
-
+    # ..................................................................................................................
+    # 📐 ГЕОМЕТРИЯ: helper: dict стилей
+    # ..................................................................................................................
     @property
     def box_style(self) -> dict[str, str]:
         """
@@ -343,14 +336,18 @@ class TSizeMixin:
             top='10px', width='50%' → {'top': '10px', 'width': '50%'}
         """
         style: dict[str, str] = {}
-
+        # ---
         top = getattr(self, "f_top", None)
         left = getattr(self, "f_left", None)
         right = getattr(self, "f_right", None)
         bottom = getattr(self, "f_bottom", None)
         width = getattr(self, "f_width", None)
         height = getattr(self, "f_height", None)
-
+        min_width = getattr(self, "f_min_width", None)
+        max_width = getattr(self, "f_max_width", None)
+        min_height = getattr(self, "f_min_height", None)
+        max_height = getattr(self, "f_max_height", None)
+        # ---
         if top is not None:
             style["top"] = top
         if left is not None:
@@ -363,7 +360,15 @@ class TSizeMixin:
             style["width"] = width
         if height is not None:
             style["height"] = height
-
+        if min_width is not None:
+            style["min-width"] = min_width
+        if max_width is not None:
+            style["max-width"] = max_width
+        if min_height is not None:
+            style["min-height"] = min_height
+        if max_height is not None:
+            style["max-height"] = max_height
+        # ---
         return style
 # ---
 from dataclasses import dataclass

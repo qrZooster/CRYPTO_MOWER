@@ -231,8 +231,11 @@ class TpgMain(TPage):
         mon.screen_class = "tc-mon-screen-dark"
         mon.font_class = "tc-mon-font-amber"
 
-        crd = TCard(self)
-        crd.td()
+        crd3 = TCard(self)
+        crd3.td(0).width = "60%"
+        #td = crd.td()
+        #td.width = "20%"
+        crd3.width = 500
         #crd.size = "md"
         #crd.size = "xs"
         #crd.size = "xl"
