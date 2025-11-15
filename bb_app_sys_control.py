@@ -233,9 +233,9 @@ class TpgMain(TPage):
 
         crd = TCard(self)
         crd.td()
-        crd.size = "md"
-        crd.size = "xs"
-        crd.size = "xl"
+        #crd.size = "md"
+        #crd.size = "xs"
+        #crd.size = "xl"
         #label(crd, "SuperText!))")
         self.render_children()
 # ----------------------------------------------------------------------------------------------------------------------

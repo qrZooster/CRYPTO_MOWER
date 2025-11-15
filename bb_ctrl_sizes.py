@@ -67,7 +67,17 @@ class TSizeMixin:
         if s not in ATOM_SIZES:
             raise ValueError(f"Invalid size '{value}'. Allowed: {ATOM_SIZES}")
 
+        old_size = self.size
+        if old_size == s:
+            self.f_size = s
+            return
+
         self.f_size = s
+        self.on_size_changed(old_size, s)
+
+    def on_size_changed(self, old_size: str, new_size: str) -> None:
+        """Хук для наследников. По умолчанию ничего не делает."""
+        return
 
     def _size_idx(self) -> int:
         """

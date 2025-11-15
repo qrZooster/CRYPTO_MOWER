@@ -268,6 +268,18 @@ class TCustomControl(TComponent):
                 if t and t not in self.classes:
                     self.classes.append(t)
 
+    def remove_class(self, *tokens):
+        """Удаляет css-классы, если они были навешены ранее."""
+        if not hasattr(self, "classes") or not self.classes:
+            return
+
+        for tok in tokens:
+            if not tok:
+                continue
+            for t in str(tok).split():
+                if t and t in self.classes:
+                    self.classes.remove(t)
+
     def add_style(self, style_fragment: str | None):
         """
         Добавляет кусок inline-style. Не затирает предыдущее состояние. Если фрагмент не заканчивается ; — добавляем его.

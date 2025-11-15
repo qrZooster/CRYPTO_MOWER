@@ -205,7 +205,21 @@ html {
 /* ====================================================================== */
 /*  Card title / subtitle scale                                          */
 /*  Используется вместе с базовыми .card-title / .card-subtitle          */
+/*  Значения синхронизированы с CardSizeCfg.title_font_px/sub_title_font */
 /* ====================================================================== */
+
+.card-title {
+    font-weight: 600;
+    line-height: 1.2;
+    color: #0056b3;
+    margin-bottom: 0;
+}
+
+.card-subtitle {
+    line-height: 1.2;
+    color: #666666;
+    margin-bottom: 0;
+}
 
 /* xs */
 .card-title-xs {

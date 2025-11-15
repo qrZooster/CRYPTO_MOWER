@@ -390,6 +390,10 @@ class TCardPanel(TFlex_Tr, TIconMixin, TCaptionMixin):
         self.mid_td.add_class("d-flex", "align-items-center", "flex-grow-1", "gap-2", "flex-wrap")
         # правая колонка — actions справа
         self.right_td.add_class("d-flex", "align-items-center", "gap-2", "flex-wrap", "ms-auto")
+        # ссылки на автосгенерированные элементы шапки
+        self._auto_icon = None
+        self._auto_title_label = None
+        self._auto_sub_label = None
     # ..................................................................................................................
     # 🔧 Внутренний автосборщик заголовка карточки
     # ..................................................................................................................
@@ -408,8 +412,11 @@ class TCardPanel(TFlex_Tr, TIconMixin, TCaptionMixin):
         if self.type != "ptHeader":
             return
 
-        # уже есть контент? не лезем
+        # если в колонке уже есть контент — не вмешиваемся и сбрасываем авто-ссылки
         if getattr(self.left_td, "Flow", []):
+            self._auto_icon = None
+            self._auto_title_label = None
+            self._auto_sub_label = None
             return
 
         card = getattr(self, "Owner", None)
@@ -421,12 +428,14 @@ class TCardPanel(TFlex_Tr, TIconMixin, TCaptionMixin):
         sub_txt = getattr(card, "sub_title", "")
 
         # --- ICON ---
+        self._auto_icon = None
         if icon_txt:
             ico = TIcon(self.left_td)
             ico.icon = icon_txt
-            ico.size = 20
+            ico.size = card._size_cfg.icon_px
             ico.h = 0
             self.left_td.add(ico)
+            self._auto_icon = ico
 
         # --- BLOCK: title + sub_title (вертикально)
         block = TCompositeControl(self.left_td, "AutoTitleBlock")
@@ -436,19 +445,21 @@ class TCardPanel(TFlex_Tr, TIconMixin, TCaptionMixin):
         # Заголовок (h2)
         lbl_title = TLabel(block, "AutoTitle")
         lbl_title.h = 2
-        lbl_title.add_class("card-title")
         lbl_title.add_class("m-0")
-        lbl_title.add_style("line-height:1.2; font-size:16px; font-weight:bold; color:#0056b3;")
+        card.apply_header_title_classes(lbl_title)
         if title_txt:
             lbl_title.caption = title_txt
         # если title пустой → TLabel сам подставит своё Name
 
         # Подзаголовок (мелкий серый) — только если есть
+        self._auto_title_label = lbl_title
+        self._auto_sub_label = None
         if sub_txt:
             lbl_sub = TLabel(block, "AutoSub")
             lbl_sub.h = 0
             lbl_sub.caption = sub_txt
-            lbl_sub.add_style("color:#666; font-size:13px; line-height:1.2;")
+            card.apply_header_subtitle_classes(lbl_sub)
+            self._auto_sub_label = lbl_sub
 
         # положить блок целиком в левую колонку
         self.left_td.add(block)
@@ -574,30 +585,57 @@ class TCard(TSizeMixin, TIconMixin, TCompositeControl):
         # 🔥 дефолтный size для карточки
         #self.size = "md"  # дернёт TSizeMixin.size.setter → on_size_changed()
 
+    # 📌 Кастомные заголовки: используйте apply_header_title_classes/apply_header_subtitle_classes,
+    # чтобы повторно применять card-title-{size}/card-subtitle-{size} для своих TLabel.
+    def header_title_tokens(self) -> tuple[str, str]:
+        """Набор css-классов для заголовка в шапке."""
+        return ("card-title", f"card-title-{self.size}")
+
+    def header_subtitle_tokens(self) -> tuple[str, str]:
+        """Набор css-классов для подзаголовка."""
+        return ("card-subtitle", f"card-subtitle-{self.size}")
+
+    def apply_header_title_classes(self, label: "TCustomControl") -> None:
+        """
+        Навешивает токены card-title/card-title-{size} на переданный TLabel.
+        Используется автосборщиком шапки, но доступен и для кастомных сценариев.
+        """
+        if label is None:
+            return
+        label.add_class(*self.header_title_tokens())
+
+    def apply_header_subtitle_classes(self, label: "TCustomControl") -> None:
+        """
+        Помощник для навешивания card-subtitle/card-subtitle-{size} на кастомные лейблы.
+        """
+        if label is None:
+            return
+        label.add_class(*self.header_subtitle_tokens())
+
+    @staticmethod
+    def _size_tokens(prefix: str) -> tuple[str, ...]:
+        return tuple(f"{prefix}-{tok}" for tok in ATOM_SIZES)
+
+    def _apply_panel_size_classes(self, panel: "TCustomControl | None", prefix: str, *, include_md: bool = False) -> None:
+        if panel is None:
+            return
+        for token in self._size_tokens(prefix):
+            panel.remove_class(token)
+        if include_md or self.size != "md":
+            panel.add_class(f"{prefix}-{self.size}")
+
     def _apply_size_classes(self) -> None:
         """
         Применяет size-классы к корню карточки и её структурным панелям,
         исходя из ТЕКУЩЕГО значения self.size.
-        Никаких remove_class – только добавляем.
         """
-        sz = self.size  # 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+        for token in self._size_tokens("card"):
+            self.remove_class(token)
+        self.add_class(f"card-{self.size}")
 
-        # 'md' считаем базой: стили для неё задаются через .card/.card-header/.card-body
-        if sz == "md":
-            return
-
-        # корень
-        self.add_class(f"card-{sz}")
-
-        # header/body/footer
-        if self.header is not None:
-            self.header.add_class(f"card-header-{sz}")
-
-        if self.body is not None:
-            self.body.add_class(f"card-body-{sz}")
-
-        if self.footer is not None:
-            self.footer.add_class(f"card-footer-{sz}")
+        self._apply_panel_size_classes(getattr(self, "header", None), "card-header")
+        self._apply_panel_size_classes(getattr(self, "body", None), "card-body")
+        self._apply_panel_size_classes(getattr(self, "footer", None), "card-footer")
 
     def get_active_control(self) -> "TCustomControl":
         """
@@ -613,6 +651,36 @@ class TCard(TSizeMixin, TIconMixin, TCompositeControl):
     @property
     def _size_cfg(self) -> CardSizeCfg:
         return CARD_SIZE_CFG[self.size]
+
+    def _retokenize_header_label(self, label: "TCustomControl | None", prefix: str, old_size: str | None) -> None:
+        if label is None:
+            return
+        label.add_class(prefix)
+        if old_size:
+            label.remove_class(f"{prefix}-{old_size}")
+        label.add_class(f"{prefix}-{self.size}")
+
+    def _apply_header_size_tokens(self, old_size: str | None = None) -> None:
+        """
+        Навешивает card-title-{size} / card-subtitle-{size} на автошапку и обновляет icon_px.
+        Кастомные шапки должны сами использовать apply_header_* helpers.
+        """
+        header = getattr(self, "header", None)
+        if header is None:
+            return
+
+        # обновляем иконку
+        auto_icon = getattr(header, "_auto_icon", None)
+        if auto_icon is not None:
+            auto_icon.size = self._size_cfg.icon_px
+
+        self._retokenize_header_label(getattr(header, "_auto_title_label", None), "card-title", old_size)
+        self._retokenize_header_label(getattr(header, "_auto_sub_label", None), "card-subtitle", old_size)
+
+    def on_size_changed(self, old_size: str, new_size: str) -> None:
+        super().on_size_changed(old_size, new_size)
+        self._apply_size_classes()
+        self._apply_header_size_tokens(old_size=old_size)
     # ..........................................................
     # 🔹 Фасад: title → нeader.caption
     # ..........................................................
@@ -663,6 +731,7 @@ class TCard(TSizeMixin, TIconMixin, TCompositeControl):
     # ..................................................................................................................
     def render(self):
         self._apply_size_classes()
+        self._apply_header_size_tokens()
         # HEADER
         if self.header and self.header_enabled:
             self.header._render()
