@@ -582,9 +582,6 @@ class TCard(TSizeMixin, TIconMixin, TCompositeControl):
         # служебный флаг: "заголовок ещё не задавали"
         self.f_title = "<none>"
         self.sub_title = ""
-        # 🔥 дефолтный size для карточки
-        #self.size = "md"  # дернёт TSizeMixin.size.setter → on_size_changed()
-
     # 📌 Кастомные заголовки: используйте apply_header_title_classes/apply_header_subtitle_classes,
     # чтобы повторно применять card-title-{size}/card-subtitle-{size} для своих TLabel.
     def header_title_tokens(self) -> tuple[str, str]:
