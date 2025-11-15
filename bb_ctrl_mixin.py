@@ -9,13 +9,13 @@ from __future__ import annotations
 from typing import Any, Optional, Dict
 from bb_sys import *  # если миксины используют логгер / базовые типы / утилиты
 from bb_ctrl_custom import *  # если где-то в миксинах есть type hints на TCustomControl
+from bb_ctrl_sizes import TSizeMixin
 # 💎🧩⚙️🧪 ... __ALL__ ...
 __all__ = [
     "TLinkMixin",
     "TCaptionMixin",
     "TIconMixin",
     "TStyleMixin",
-    "TPlaceholderMixin",
     "TwsSubscriberMixin"
     # сюда же добавишь остальные миксины, если они есть
 ]
@@ -59,142 +59,6 @@ class TwsSubscriberMixin:
             parts.append(f"data-tws-type='{tp}'")
 
         return " ".join(parts)
-# ----------------------------------------------------------------------------------------------------------------------
-# 🧪 TPlaceholderMixin — PlaceHolder
-# ----------------------------------------------------------------------------------------------------------------------
-class TPlaceholderMixin:
-    def __init__(self, *args, place_holder: str = "", **kwargs):
-        # сначала даём базовым классам инициализироваться
-        super().__init__(*args, **kwargs)
-
-        # текст-заглушка по умолчанию (можно потом менять)
-        self.place_holder: str = place_holder
-
-        # внутреннее состояние плейсхолдера
-        self._placeholder_visible: bool = False
-        self._placeholder_container: Any | None = None  # куда положили HTML (обычно td.Flow)
-        self._placeholder_node: Any | None = None       # сам HTML-узел плейсхолдера
-        self._placeholder_border_style: str | None = None  # бордер, который нужно снять
-
-        # 🔹 Легаси-поля для панелей с auto-td0:
-        #    чтобы старый код, который ещё смотрит на _auto_td0/_td0_claimed,
-        #    не падал с AttributeError.
-        if not hasattr(self, "_auto_td0"):
-            self._auto_td0 = None
-        if not hasattr(self, "_td0_claimed"):
-            self._td0_claimed = False
-
-    # ..................................................................
-    # Внутренние хелперы
-    # ..................................................................
-    def _default_placeholder_html(self, text: str | None = None) -> str:
-        """
-        Строит HTML плейсхолдера (серый monospace-текст).
-        """
-        txt = (text or self.place_holder or getattr(self, "Name", "")) or ""
-        ph_style = (
-            "color:#999;"
-            "font-size:12px;"
-            "font-family:monospace;"
-            "line-height:1.2;"
-            "opacity:0.6;"
-        )
-        return f"<div style='{ph_style}'>{txt}</div>"
-
-    def _init_placeholder(
-        self,
-        container: Any | None = None,
-        text: str | None = None,
-        border_style: str | None = None,
-    ) -> None:
-        """
-        Инициализирует плейсхолдер:
-        - вешает бордер на сам контрол (если задан),
-        - кладёт HTML в container.Flow (если есть контейнер),
-        - иначе в self.Canvas.
-        """
-        self._placeholder_container = container
-        self._placeholder_border_style = border_style
-
-        # 1) бордер на контрол
-        if border_style:
-            try:
-                self.add_style(border_style)
-            except Exception:
-                pass
-
-        # 2) HTML плейсхолдера
-        html = self._default_placeholder_html(text)
-        target = container
-
-        # пробуем положить в Flow контейнера (например, td.Flow)
-        if target is not None and hasattr(target, "Flow"):
-            try:
-                target.Flow.append(html)
-                self._placeholder_node = html
-                self._placeholder_visible = True
-                return
-            except Exception:
-                # если что-то пошло не так — падаем в Canvas
-                pass
-
-        # fallback — кладём в Canvas самого контрола
-        try:
-            self.Canvas.append(html)
-            self._placeholder_node = html
-            self._placeholder_visible = True
-        except Exception:
-            # вообще ничего не смогли — деактивируем
-            self._placeholder_visible = False
-            self._placeholder_node = None
-            self._placeholder_container = None
-            self._placeholder_border_style = None
-
-    def _disable_placeholder_if_needed(self) -> None:
-        """
-        Убирает плейсхолдер (HTML + бордер), если он ещё активен.
-        Многократные вызовы безопасны.
-        """
-        if not getattr(self, "_placeholder_visible", False):
-            return
-
-        node = getattr(self, "_placeholder_node", None)
-        container = getattr(self, "_placeholder_container", None)
-
-        # 1) убираем HTML из Flow контейнера
-        if container is not None and node is not None and hasattr(container, "Flow"):
-            try:
-                flow = getattr(container, "Flow", [])
-                container.Flow = [
-                    n for n in flow
-                    if n is not node and n != node
-                ]
-            except Exception:
-                pass
-        else:
-            # возможно, плейсхолдер лежит прямо в Canvas
-            if node is not None and hasattr(self, "Canvas"):
-                try:
-                    self.Canvas = [
-                        n for n in self.Canvas
-                        if n is not node and n != node
-                    ]
-                except Exception:
-                    pass
-
-        # 2) снимаем бордер
-        border = getattr(self, "_placeholder_border_style", None)
-        if border and hasattr(self, "styles"):
-            try:
-                self.styles.remove(border)
-            except Exception:
-                pass
-
-        # 3) сбрасываем состояние
-        self._placeholder_visible = False
-        self._placeholder_node = None
-        self._placeholder_container = None
-        self._placeholder_border_style = None
 # ----------------------------------------------------------------------------------------------------------------------
 # 🧪 TLinkMixin — навигационный миксин (href/page для кликабельных контролов)
 # ----------------------------------------------------------------------------------------------------------------------
@@ -283,78 +147,6 @@ class TCaptionMixin:
     def caption(self, value: str | None):
         # пустое / None → значит "используй kind/Name"
         self.f_caption = None if value is None else str(value)
-# ----------------------------------------------------------------------------------------------------------------------
-# 🧪 TSizeMixin — миксин логического размера (xs..xl)
-# ----------------------------------------------------------------------------------------------------------------------
-class TSizeMixin:
-    """
-    Миксин для логического размера визуального контрола.
-    Работает только с токенами из ATOM_SIZES: xs/sm/md/lg/xl.
-    Хранит значение в self.f_size, по умолчанию считает 'md'.
-    """
-    @property
-    def size(self) -> str:
-        """
-        Логический размер ('xs'..'xl').
-
-        Если в f_size лежит мусор или None — возвращаем 'md'.
-        """
-        raw = getattr(self, "f_size", None)
-        if raw is None:
-            return "md"
-        s = str(raw).strip().lower()
-        if s in ATOM_SIZES:
-            return s
-        return "md"
-
-    @size.setter
-    def size(self, value) -> None:
-        """
-        Устанавливает логический размер по токену.
-        Допустимы только значения из ATOM_SIZES, иначе ValueError.
-        """
-        if value is None:
-            s = "md"
-        else:
-            s = str(value).strip().lower()
-
-        if s not in ATOM_SIZES:
-            raise ValueError(f"Invalid size '{value}'. Allowed: {ATOM_SIZES}")
-
-        self.f_size = s
-
-    def _size_idx(self) -> int:
-        """
-        Текущий индекс размера в ATOM_SIZES, с fallback на 'md'.
-        """
-        current = self.size
-        try:
-            return ATOM_SIZES.index(current)
-        except ValueError:
-            return ATOM_SIZES.index("md")
-
-    def inc_size(self, steps: int = 1):
-        """
-        Увеличивает размер на steps шагов по шкале ATOM_SIZES.
-        Не выходит за границы (xs..xl).
-        Возвращает self для чейнинга.
-        """
-        try:
-            step = int(steps)
-        except Exception:
-            step = 0
-
-        idx = self._size_idx()
-        idx = max(0, min(idx + step, len(ATOM_SIZES) - 1))
-        self.size = ATOM_SIZES[idx]
-        return self
-
-    def dec_size(self, steps: int = 1):
-        """
-        Уменьшает размер на steps шагов.
-        Вся логика в inc_size(), здесь только разворот знака.
-        """
-        return self.inc_size(-steps)
 # ----------------------------------------------------------------------------------------------------------------------
 # 🧪 TIconMixin — миксин для строкового icon
 # ----------------------------------------------------------------------------------------------------------------------
@@ -614,5 +406,5 @@ class TStyleMixin(TSizeMixin):
 
         return " ".join(parts)
 # ======================================================================================================================
-# 📁🌄 bb_ctrl_mixin.py 🜂 The End — See You Next Session 2025 💹 568
+# 📁🌄 bb_ctrl_mixin.py 🜂 The End — See You Next Session 2025 💹 568 -> 409
 # ======================================================================================================================

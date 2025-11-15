@@ -112,3 +112,212 @@ html {
     color: #ff6b6b;
 }
 
+
+/* ====================================================================== */
+/*  Card size tokens: xs / sm / md / lg / xl                             */
+/*  Ожидается, что TCard навешивает классы card-<size>.                  */
+/* ====================================================================== */
+
+.card-xs {
+    margin: 0.25rem;    /* ~4px */
+}
+
+.card-sm {
+    margin: 0.375rem;   /* ~6px */
+}
+
+.card-md {
+    margin: 0.5rem;     /* ~8px — базовый размер */
+}
+
+.card-lg {
+    margin: 0.75rem;    /* ~12px */
+}
+
+.card-xl {
+    margin: 1rem;       /* ~16px */
+}
+
+
+/* ====================================================================== */
+/*  Card header/body/footer padding + base font size                     */
+/*  Классы навешиваются из TCard:                                        */
+/*    header.add_class("card-header-<size>")                             */
+/*    body.add_class("card-body-<size>")                                 */
+/*    footer.add_class("card-footer-<size>")                             */
+/* ====================================================================== */
+
+/* xs */
+.card-header-xs,
+.card-footer-xs {
+    padding: 0.375rem 0.375rem;   /* ~6px */
+    font-size: 0.8125rem;         /* ~13px */
+}
+
+.card-body-xs {
+    padding: 0.375rem;            /* ~6px */
+}
+
+/* sm */
+.card-header-sm,
+.card-footer-sm {
+    padding: 0.5rem 0.5rem;       /* ~8px */
+    font-size: 0.875rem;          /* ~14px */
+}
+
+.card-body-sm {
+    padding: 0.5rem;              /* ~8px */
+}
+
+/* md (дефолт) */
+.card-header-md,
+.card-footer-md {
+    padding: 0.75rem 0.75rem;     /* ~12px */
+    font-size: 1rem;              /* ~16px */
+}
+
+.card-body-md {
+    padding: 0.75rem;             /* ~12px */
+}
+
+/* lg */
+.card-header-lg,
+.card-footer-lg {
+    padding: 1rem 1rem;           /* ~16px */
+    font-size: 1.125rem;          /* ~18px */
+}
+
+.card-body-lg {
+    padding: 1rem;                /* ~16px */
+}
+
+/* xl */
+.card-header-xl,
+.card-footer-xl {
+    padding: 1.25rem 1.25rem;     /* ~20px */
+    font-size: 1.375rem;          /* ~22px */
+}
+
+.card-body-xl {
+    padding: 1.25rem;             /* ~20px */
+}
+
+/* ====================================================================== */
+/*  Card title / subtitle scale                                          */
+/*  Используется вместе с базовыми .card-title / .card-subtitle          */
+/* ====================================================================== */
+
+/* xs */
+.card-title-xs {
+    font-size: 0.8125rem;   /* ~13px */
+}
+
+.card-subtitle-xs {
+    font-size: 0.6875rem;   /* ~11px */
+}
+
+/* sm */
+.card-title-sm {
+    font-size: 0.875rem;    /* ~14px */
+}
+
+.card-subtitle-sm {
+    font-size: 0.75rem;     /* ~12px */
+}
+
+/* md */
+.card-title-md {
+    font-size: 1rem;        /* ~16px */
+}
+
+.card-subtitle-md {
+    font-size: 0.8125rem;   /* ~13px */
+}
+
+/* lg */
+.card-title-lg {
+    font-size: 1.125rem;    /* ~18px */
+}
+
+.card-subtitle-lg {
+    font-size: 0.875rem;    /* ~14px */
+}
+
+/* xl */
+.card-title-xl {
+    font-size: 1.375rem;    /* ~22px */
+}
+
+.card-subtitle-xl {
+    font-size: 1rem;        /* ~16px */
+}
+
+/* ====================================================================== */
+/*  Grid row size tokens (TGrid_Tr)                                      */
+/* ====================================================================== */
+
+/* xs */
+.grid-tr-xs {
+    min-height: 1.25rem;      /* ~20px */
+    font-size: 0.6875rem;     /* ~11px */
+}
+
+/* sm */
+.grid-tr-sm {
+    min-height: 1.5rem;       /* ~24px */
+    font-size: 0.75rem;       /* ~12px */
+}
+
+/* md */
+.grid-tr-md {
+    min-height: 1.75rem;      /* ~28px */
+    font-size: 0.8125rem;     /* ~13px */
+}
+
+/* lg */
+.grid-tr-lg {
+    min-height: 2rem;         /* ~32px */
+    font-size: 0.875rem;      /* ~14px */
+}
+
+/* xl */
+.grid-tr-xl {
+    min-height: 2.25rem;      /* ~36px */
+    font-size: 1rem;          /* ~16px */
+}
+
+/* ====================================================================== */
+/*  Grid cell size tokens (TGrid_Td)                                     */
+/* ====================================================================== */
+
+/* xs: компактные ячейки */
+.grid-td-xs {
+    padding: 0.0625rem 0.25rem;   /* ~1px 4px */
+    font-size: 0.6875rem;         /* ~11px */
+}
+
+/* sm */
+.grid-td-sm {
+    padding: 0.125rem 0.375rem;   /* ~2px 6px */
+    font-size: 0.75rem;           /* ~12px */
+}
+
+/* md */
+.grid-td-md {
+    padding: 0.1875rem 0.5rem;    /* ~3px 8px */
+    font-size: 0.8125rem;         /* ~13px */
+}
+
+/* lg */
+.grid-td-lg {
+    padding: 0.25rem 0.625rem;    /* ~4px 10px */
+    font-size: 0.875rem;          /* ~14px */
+}
+
+/* xl */
+.grid-td-xl {
+    padding: 0.3125rem 0.75rem;   /* ~5px 12px */
+    font-size: 1rem;              /* ~16px */
+}
+
+

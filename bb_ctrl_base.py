@@ -13,13 +13,14 @@ from typing import Optional, Dict, Any
 from bb_sys import *
 from bb_ctrl_custom import *
 from bb_ctrl_mixin import *
+from bb_ctrl_sizes import *
 from datetime import datetime
 # 💎🧩⚙️ ... __ALL__ ...
 __all__ = ["TGrid", "TPanel", "TCard", "TMenu", "TMonitor", "TCardMonitor"]
 # ----------------------------------------------------------------------------------------------------------------------
 # 🧩 TGrid — каркас страницы / секции (flex-column из строк)
 # ----------------------------------------------------------------------------------------------------------------------
-class TGrid(TCompositeControl):
+class TGrid(TSizeMixin, TCompositeControl):
     prefix = "grid"
     MARK_FAMILY = "grid"
     MARK_LEVEL = 0
@@ -242,7 +243,7 @@ class TGrid(TCompositeControl):
 # ----------------------------------------------------------------------------------------------------------------------
 # 🧩 TGrid_Tr — строка грида (тонкий наследник TFlex_Tr)
 # ----------------------------------------------------------------------------------------------------------------------
-class TGrid_Tr(TFlex_Tr):
+class TGrid_Tr(TSizeMixin, TFlex_Tr):
     prefix = "grid_tr"
     MARK_FAMILY = "grid"
     MARK_LEVEL = 1
@@ -260,6 +261,10 @@ class TGrid_Tr(TFlex_Tr):
         self.height: str = "auto"
         if self.height and self.height != "auto":
             self.add_style(f"height:{self.height};")
+
+    @property
+    def _row_size_cfg(self) -> GridRowSizeCfg:
+        return GRID_ROW_SIZE_CFG[self.size]
     # ..................................................................................................................
     # 🔳 Работа с ячейками (совместимость c API грида)
     # ..................................................................................................................
@@ -301,7 +306,7 @@ class TGrid_Tr(TFlex_Tr):
 # ----------------------------------------------------------------------------------------------------------------------
 # 🧩 TGrid_Td — ячейка грида (тонкий наследник TFlex_Td)
 # ----------------------------------------------------------------------------------------------------------------------
-class TGrid_Td(TFlex_Td):
+class TGrid_Td(TSizeMixin, TFlex_Td):
     prefix = "grid_td"
     MARK_FAMILY = "grid"
     MARK_LEVEL = 2
@@ -314,6 +319,10 @@ class TGrid_Td(TFlex_Td):
         super().do_init()
         # --- Основные параметры td ---
         self.width: str = "auto"
+
+    @property
+    def _cell_size_cfg(self) -> GridCellSizeCfg:
+        return GRID_CELL_SIZE_CFG[self.size]
     # ..................................................................................................................
     # 🛡️ Политика владения
     # ..................................................................................................................
@@ -535,7 +544,7 @@ class TCardBody(TGrid):
 # ----------------------------------------------------------------------------------------------------------------------
 # 🧩 TCard — карточка с header / body / footer (базовый каркас Tradition Core)
 # ----------------------------------------------------------------------------------------------------------------------
-class TCard(TIconMixin, TCompositeControl):
+class TCard(TSizeMixin, TIconMixin, TCompositeControl):
     prefix = "card"
     MARK_FAMILY = "card"
     MARK_LEVEL = 0
@@ -562,8 +571,33 @@ class TCard(TIconMixin, TCompositeControl):
         # служебный флаг: "заголовок ещё не задавали"
         self.f_title = "<none>"
         self.sub_title = ""
-        # 🔹 текст плейсхолдера для body
-        #self.place_holder = f"body:{self.Name}"
+        # 🔥 дефолтный size для карточки
+        #self.size = "md"  # дернёт TSizeMixin.size.setter → on_size_changed()
+
+    def _apply_size_classes(self) -> None:
+        """
+        Применяет size-классы к корню карточки и её структурным панелям,
+        исходя из ТЕКУЩЕГО значения self.size.
+        Никаких remove_class – только добавляем.
+        """
+        sz = self.size  # 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+
+        # 'md' считаем базой: стили для неё задаются через .card/.card-header/.card-body
+        if sz == "md":
+            return
+
+        # корень
+        self.add_class(f"card-{sz}")
+
+        # header/body/footer
+        if self.header is not None:
+            self.header.add_class(f"card-header-{sz}")
+
+        if self.body is not None:
+            self.body.add_class(f"card-body-{sz}")
+
+        if self.footer is not None:
+            self.footer.add_class(f"card-footer-{sz}")
 
     def get_active_control(self) -> "TCustomControl":
         """
@@ -575,6 +609,10 @@ class TCard(TIconMixin, TCompositeControl):
             return body.active_control
         # запасной вариант — базовое поведение
         return super().get_active_control()
+
+    @property
+    def _size_cfg(self) -> CardSizeCfg:
+        return CARD_SIZE_CFG[self.size]
     # ..........................................................
     # 🔹 Фасад: title → нeader.caption
     # ..........................................................
@@ -624,6 +662,7 @@ class TCard(TIconMixin, TCompositeControl):
     # 🎨 Рендер
     # ..................................................................................................................
     def render(self):
+        self._apply_size_classes()
         # HEADER
         if self.header and self.header_enabled:
             self.header._render()

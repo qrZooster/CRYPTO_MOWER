@@ -10,6 +10,7 @@ from typing import Any
 
 from bb_sys import *
 from bb_ctrl_mixin import *
+from bb_ctrl_sizes import *
 from bb_ctrl_custom import TCustomControl
 from _sys import *
 # 💎🧩⚙️ ... __ALL__ ...
