@@ -290,22 +290,30 @@ class TGrid_Tr(TSizeMixin, TFlex_Tr):
         if self.height and self.height != "auto":
             self.add_style(f"height:{self.height};")
         self._size_inherited: bool = True
-        self._size_inherit_lock: bool = False
 
     @property
     def _row_size_cfg(self) -> GridRowSizeCfg:
         return GRID_ROW_SIZE_CFG[self.size]
 
-    def _inherit_size(self, size_token: str) -> None:
-        self._size_inherit_lock = True
-        try:
-            self.size = size_token
-        finally:
-            self._size_inherit_lock = False
+    # --- управление наследованием размера от грида ---
+    @property  # type: ignore[override]
+    def size(self) -> str:
+        # используем базовую логику TSizeMixin
+        return TSizeMixin.size.fget(self)
 
-    def on_size_changed(self, old_size: str, new_size: str) -> None:
-        super().on_size_changed(old_size, new_size)
-        self._size_inherited = bool(self._size_inherit_lock)
+    @size.setter  # type: ignore[override]
+    def size(self, value) -> None:
+        # явная установка размера разработчиком → строка перестаёт наследоваться
+        self._size_inherited = False
+        TSizeMixin.size.fset(self, value)
+
+    def _inherit_size(self, size_token: str) -> None:
+        """
+        Внутренний путь обновления размера от родителя (TGrid.size).
+        Не переводит строку в режим «ручного» размера.
+        """
+        TSizeMixin.size.fset(self, size_token)
+        self._size_inherited = True
 
     def _apply_row_size_classes(self) -> None:
         for token in _grid_size_tokens("grid-tr"):
@@ -366,22 +374,29 @@ class TGrid_Td(TSizeMixin, TFlex_Td):
         # --- Основные параметры td ---
         self.width: str = "auto"
         self._size_inherited: bool = True
-        self._size_inherit_lock: bool = False
 
     @property
     def _cell_size_cfg(self) -> GridCellSizeCfg:
         return GRID_CELL_SIZE_CFG[self.size]
 
-    def _inherit_size(self, size_token: str) -> None:
-        self._size_inherit_lock = True
-        try:
-            self.size = size_token
-        finally:
-            self._size_inherit_lock = False
+    # --- управление наследованием размера от строки ---
+    @property  # type: ignore[override]
+    def size(self) -> str:
+        return TSizeMixin.size.fget(self)
 
-    def on_size_changed(self, old_size: str, new_size: str) -> None:
-        super().on_size_changed(old_size, new_size)
-        self._size_inherited = bool(self._size_inherit_lock)
+    @size.setter  # type: ignore[override]
+    def size(self, value) -> None:
+        # явная установка размера → больше не наследуем от строки
+        self._size_inherited = False
+        TSizeMixin.size.fset(self, value)
+
+    def _inherit_size(self, size_token: str) -> None:
+        """
+        Внутренний путь обновления размера от владельца-строки.
+        Не помечает ячейку как «ручную».
+        """
+        TSizeMixin.size.fset(self, size_token)
+        self._size_inherited = True
 
     def _apply_cell_size_classes(self) -> None:
         for token in _grid_size_tokens("grid-td"):
@@ -478,9 +493,6 @@ class TCardPanel(TFlex_Tr, TIconMixin, TCaptionMixin):
 
         # если в колонке уже есть контент — не вмешиваемся и сбрасываем авто-ссылки
         if getattr(self.left_td, "Flow", []):
-            self._auto_icon = None
-            self._auto_title_label = None
-            self._auto_sub_label = None
             return
 
         card = getattr(self, "Owner", None)
@@ -713,15 +725,24 @@ class TCard(TSizeMixin, TIconMixin, TCompositeControl):
     def _size_cfg(self) -> CardSizeCfg:
         return CARD_SIZE_CFG[self.size]
 
-    def _retokenize_header_label(self, label: "TCustomControl | None", prefix: str, old_size: str | None) -> None:
+    def _retokenize_header_label(self, label: "TCustomControl | None", prefix: str) -> None:
+        """
+        Обновляет size-токены заголовка/подзаголовка:
+        снимает prefix-{xs..xl} и вешает prefix-{self.size}.
+        """
         if label is None:
             return
+
         label.add_class(prefix)
-        if old_size:
-            label.remove_class(f"{prefix}-{old_size}")
+
+        # убираем все старые size-токены для этого префикса
+        for tok in ATOM_SIZES:
+            label.remove_class(f"{prefix}-{tok}")
+
+        # и ставим актуальный
         label.add_class(f"{prefix}-{self.size}")
 
-    def _apply_header_size_tokens(self, old_size: str | None = None) -> None:
+    def _apply_header_size_tokens(self) -> None:
         """
         Навешивает card-title-{size} / card-subtitle-{size} на автошапку и обновляет icon_px.
         Кастомные шапки должны сами использовать apply_header_* helpers.
@@ -730,18 +751,14 @@ class TCard(TSizeMixin, TIconMixin, TCompositeControl):
         if header is None:
             return
 
-        # обновляем иконку
+        # обновляем размер иконки
         auto_icon = getattr(header, "_auto_icon", None)
         if auto_icon is not None:
             auto_icon.size = self._size_cfg.icon_px
 
-        self._retokenize_header_label(getattr(header, "_auto_title_label", None), "card-title", old_size)
-        self._retokenize_header_label(getattr(header, "_auto_sub_label", None), "card-subtitle", old_size)
-
-    def on_size_changed(self, old_size: str, new_size: str) -> None:
-        super().on_size_changed(old_size, new_size)
-        self._apply_size_classes()
-        self._apply_header_size_tokens(old_size=old_size)
+        # обновляем классы заголовка и подзаголовка
+        self._retokenize_header_label(getattr(header, "_auto_title_label", None), "card-title")
+        self._retokenize_header_label(getattr(header, "_auto_sub_label", None), "card-subtitle")
     # ..........................................................
     # 🔹 Фасад: title → нeader.caption
     # ..........................................................

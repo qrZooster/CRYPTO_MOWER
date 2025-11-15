@@ -73,7 +73,6 @@ class TSizeMixin:
             return
 
         self.f_size = s
-        self.on_size_changed(old_size, s)
 
     def on_size_changed(self, old_size: str, new_size: str) -> None:
         """Хук для наследников. По умолчанию ничего не делает."""
