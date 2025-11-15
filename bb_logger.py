@@ -16,7 +16,6 @@ from rich.text import Text
 # ----------------------------------------------------------------------------------------------------------------------
 class TLogRouter:
     """Глобальный Rich лог-центр с несколькими окнами."""
-
     def __init__(self, window_count: int = 3, refresh_rate: float = 0.5):
         self.console = Console()
         self.window_count = window_count
