@@ -110,9 +110,9 @@ class TSizeMixin:
         Вся логика в inc_size(), здесь только разворот знака.
         """
         return self.inc_size(-steps)
-
-    # ---------- ГЕОМЕТРИЯ: top / left / right / bottom ----------
-
+    # ..................................................................................................................
+    # 📐 ГЕОМЕТРИЯ: top / left / right / bottom
+    # ..................................................................................................................
     @staticmethod
     def _normalize_offset(value) -> str:
         """
@@ -190,24 +190,35 @@ class TSizeMixin:
             self.f_bottom = None
         else:
             self.f_bottom = self._normalize_offset(value)
-
-    # ---------- ГЕОМЕТРИЯ: width / height ----------
-
+    # ..................................................................................................................
+    # 📐 ГЕОМЕТРИЯ: width / height
+    # ..................................................................................................................
     @staticmethod
     def _normalize_dimension(value) -> str:
         """
-        Нормализация значений для width/height.
+        Нормализация значений для width/height и min/max-*.
 
         Допустимо:
+            - целое или вещественное число → '<value>px' (500 → '500px')
             - 'auto'
             - '<int>px'
             - '<int>%'
             - 'calc(...)'  (любая строка, начинающаяся на 'calc(' и заканчивающаяся ')')
+            - строка из одних цифр / числа: '300' → '300px', '12.5' → '12.5px'
 
         Во всех остальных случаях — ValueError.
         """
         if value is None:
             raise ValueError("Dimension cannot be None")
+
+        # Числовые значения: 500, 12.5 и т.п. → px
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            v = float(value)
+            if v.is_integer():
+                s_num = str(int(v))
+            else:
+                s_num = str(v)
+            return f"{s_num}px"
 
         s = str(value).strip()
         if not s:
@@ -217,9 +228,13 @@ class TSizeMixin:
         if s.lower() == "auto":
             return "auto"
 
-        # <int>px / <int>%
+        # <int>px / <int>% (как раньше)
         if re.fullmatch(r"-?\d+px", s) or re.fullmatch(r"-?\d+%", s):
             return s
+
+        # голое число / число с точкой: '300' → '300px', '12.5' → '12.5px'
+        if re.fullmatch(r"-?\d+(\.\d+)?", s):
+            return f"{s}px"
 
         # calc(...)
         if s.lower().startswith("calc(") and s.endswith(")"):
@@ -227,14 +242,12 @@ class TSizeMixin:
 
         raise ValueError(
             f"Invalid dimension value '{value}'. "
-            "Allowed: 'auto', '<int>px', '<int>%', 'calc(...)'."
+            "Allowed: number, 'auto', '<int>px', '<int>%', 'calc(...)', or numeric string."
         )
 
     @property
     def width(self) -> str | None:
-        """
-        'auto' | '100px' | '50%' | 'calc(...)' | None
-        """
+        """ 'auto' | '100px' | '50%' | 'calc(...)' | None """
         return getattr(self, "f_width", None)
 
     @width.setter
@@ -246,9 +259,7 @@ class TSizeMixin:
 
     @property
     def height(self) -> str | None:
-        """
-        'auto' | '100px' | '50%' | 'calc(...)' | None
-        """
+        """ 'auto' | '100px' | '50%' | 'calc(...)' | None """
         return getattr(self, "f_height", None)
 
     @height.setter
@@ -257,6 +268,68 @@ class TSizeMixin:
             self.f_height = None
         else:
             self.f_height = self._normalize_dimension(value)
+    # ..................................................................................................................
+    # 📐 ГЕОМЕТРИЯ: min/max width/height
+    # ..................................................................................................................
+    @property
+    def width_min(self) -> str | None:
+        """
+        'auto' | '100px' | '50%' | 'calc(...)' | None
+        Мапится в CSS min-width.
+        """
+        return getattr(self, "f_min_width", None)
+
+    @width_min.setter
+    def width_min(self, value) -> None:
+        if value is None:
+            self.f_min_width = None
+        else:
+            self.f_min_width = self._normalize_dimension(value)
+
+    @property
+    def width_max(self) -> str | None:
+        """
+        'auto' | '100px' | '50%' | 'calc(...)' | None
+        Мапится в CSS max-width.
+        """
+        return getattr(self, "f_max_width", None)
+
+    @width_max.setter
+    def width_max(self, value) -> None:
+        if value is None:
+            self.f_max_width = None
+        else:
+            self.f_max_width = self._normalize_dimension(value)
+
+    @property
+    def height_min(self) -> str | None:
+        """
+        'auto' | '100px' | '50%' | 'calc(...)' | None
+        Мапится в CSS min-height.
+        """
+        return getattr(self, "f_min_height", None)
+
+    @height_min.setter
+    def height_min(self, value) -> None:
+        if value is None:
+            self.f_min_height = None
+        else:
+            self.f_min_height = self._normalize_dimension(value)
+
+    @property
+    def height_max(self) -> str | None:
+        """
+        'auto' | '100px' | '50%' | 'calc(...)' | None
+        Мапится в CSS max-height.
+        """
+        return getattr(self, "f_max_height", None)
+
+    @height_max.setter
+    def height_max(self, value) -> None:
+        if value is None:
+            self.f_max_height = None
+        else:
+            self.f_max_height = self._normalize_dimension(value)
 
     # ---------- helper: dict стилей ----------
 
