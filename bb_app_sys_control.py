@@ -232,8 +232,14 @@ class TpgMain(TPage):
         mon.font_class = "tc-mon-font-amber"
 
         crd3 = TCard(self)
-        crd3.td(0).width = "60%"
-        #td = crd.td()
+        crd3.top = 30
+        #crd3.td(0).width = "60%"
+        td = crd3.td()
+        td.left = 20
+        td.align = "right"
+        label(td, "NewLabel")
+        #td.width = "20%"
+        td = crd3.td()
         #td.width = "20%"
         crd3.width = 500
         #crd.size = "md"

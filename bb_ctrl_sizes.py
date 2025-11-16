@@ -113,8 +113,10 @@ class TSizeMixin:
 
         Допустимо:
             - 'auto'
-            - '<int>px'  (например, '10px')
-            - '<int>%'   (например, '5%')
+            - <int>       → трактуем как '<int>px'
+            - '<int>px'   (например, '10px')
+            - '<int>%'    (например, '5%')
+
         Во всех остальных случаях — ValueError.
         """
         if value is None:
@@ -128,13 +130,17 @@ class TSizeMixin:
         if s.lower() == "auto":
             return "auto"
 
+        # голое число → px
+        if re.fullmatch(r"-?\d+", s):
+            return f"{s}px"
+
         # <int>px или <int>%
         if re.fullmatch(r"-?\d+px", s) or re.fullmatch(r"-?\d+%", s):
             return s
 
         raise ValueError(
             f"Invalid offset value '{value}'. "
-            "Allowed: 'auto', '<int>px', '<int>%'."
+            "Allowed: 'auto', <int>, '<int>px', '<int>%'."
         )
 
     @property
@@ -189,29 +195,17 @@ class TSizeMixin:
     @staticmethod
     def _normalize_dimension(value) -> str:
         """
-        Нормализация значений для width/height и min/max-*.
+        Нормализация значений для width/height.
 
         Допустимо:
-            - целое или вещественное число → '<value>px' (500 → '500px')
             - 'auto'
+            - <int>        → трактуем как '<int>px'
             - '<int>px'
             - '<int>%'
             - 'calc(...)'  (любая строка, начинающаяся на 'calc(' и заканчивающаяся ')')
-            - строка из одних цифр / числа: '300' → '300px', '12.5' → '12.5px'
-
-        Во всех остальных случаях — ValueError.
         """
         if value is None:
             raise ValueError("Dimension cannot be None")
-
-        # Числовые значения: 500, 12.5 и т.п. → px
-        if isinstance(value, (int, float)) and not isinstance(value, bool):
-            v = float(value)
-            if v.is_integer():
-                s_num = str(int(v))
-            else:
-                s_num = str(v)
-            return f"{s_num}px"
 
         s = str(value).strip()
         if not s:
@@ -221,13 +215,13 @@ class TSizeMixin:
         if s.lower() == "auto":
             return "auto"
 
-        # <int>px / <int>% (как раньше)
+        # голое число → px
+        if re.fullmatch(r"-?\d+", s):
+            return f"{s}px"
+
+        # <int>px / <int>%
         if re.fullmatch(r"-?\d+px", s) or re.fullmatch(r"-?\d+%", s):
             return s
-
-        # голое число / число с точкой: '300' → '300px', '12.5' → '12.5px'
-        if re.fullmatch(r"-?\d+(\.\d+)?", s):
-            return f"{s}px"
 
         # calc(...)
         if s.lower().startswith("calc(") and s.endswith(")"):
@@ -235,7 +229,7 @@ class TSizeMixin:
 
         raise ValueError(
             f"Invalid dimension value '{value}'. "
-            "Allowed: number, 'auto', '<int>px', '<int>%', 'calc(...)', or numeric string."
+            "Allowed: 'auto', <int>, '<int>px', '<int>%', 'calc(...)'."
         )
 
     @property
@@ -332,43 +326,52 @@ class TSizeMixin:
         Собирает dict для inline-стилей по геометрии.
 
         Включает только те ключи, которые заданы (не None).
-        Пример:
-            top='10px', width='50%' → {'top': '10px', 'width': '50%'}
+
+        По умолчанию:
+          top/left/right/bottom → margin-top/left/right/bottom
+
+        Наследники могут переопределить _offset_style_dict(), чтобы использовать,
+        например, padding-* вместо margin-*.
         """
         style: dict[str, str] = {}
-        # ---
-        top = getattr(self, "f_top", None)
-        left = getattr(self, "f_left", None)
-        right = getattr(self, "f_right", None)
-        bottom = getattr(self, "f_bottom", None)
+
+        # offsets (margin-* по умолчанию)
+        style.update(self._offset_style_dict())
+
         width = getattr(self, "f_width", None)
         height = getattr(self, "f_height", None)
-        min_width = getattr(self, "f_min_width", None)
-        max_width = getattr(self, "f_max_width", None)
-        min_height = getattr(self, "f_min_height", None)
-        max_height = getattr(self, "f_max_height", None)
-        # ---
-        if top is not None:
-            style["top"] = top
-        if left is not None:
-            style["left"] = left
-        if right is not None:
-            style["right"] = right
-        if bottom is not None:
-            style["bottom"] = bottom
+
         if width is not None:
             style["width"] = width
         if height is not None:
             style["height"] = height
-        if min_width is not None:
-            style["min-width"] = min_width
-        if max_width is not None:
-            style["max-width"] = max_width
-        if min_height is not None:
-            style["min-height"] = min_height
-        if max_height is not None:
-            style["max-height"] = max_height
-        # ---
+
+        return style
+
+    def _offset_style_dict(self) -> dict[str, str]:
+        """
+        Внутренний хук: маппинг логических top/left/right/bottom → CSS-свойства.
+
+        Базовая реализация использует margin-*.
+        Наследники (например, ячейка грида) могут переопределить этот метод
+        и поменять маппинг на padding-* и т.п.
+        """
+        style: dict[str, str] = {}
+
+        top = getattr(self, "f_top", None)
+        left = getattr(self, "f_left", None)
+        right = getattr(self, "f_right", None)
+        bottom = getattr(self, "f_bottom", None)
+
+        if top is not None:
+            style["margin-top"] = top
+        if left is not None:
+            style["margin-left"] = left
+        if right is not None:
+            style["margin-right"] = right
+        if bottom is not None:
+            style["margin-bottom"] = bottom
+
         return style
 # ---
 from dataclasses import dataclass

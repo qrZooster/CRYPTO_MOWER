@@ -940,6 +940,8 @@ class TFlex_Tr(TCompositeControl):
 # ----------------------------------------------------------------------------------------------------------------------
 class TFlex_Td(TCompositeControl):
     prefix = "flex_td"
+    # 💎 --- _ALIGN_VALUES - допустимые значения выравнивания ---
+    _ALIGN_VALUES = {"left", "center", "right", "justify"}
     # ⚡🛠️ ▸ do_init()
     def do_init(self):
         """
@@ -955,6 +957,55 @@ class TFlex_Td(TCompositeControl):
         # Ячейка должна уметь тянуться. Даём ей flex-grow-1 и базовый padding.
         self.add_class("flex-grow-1")
         self.add_style("padding:4px;")
+        # --- Выравнивание содержимого ячейки ---
+        # None → не задаём text-align, используем то, что придёт от css.
+        self.f_align: str | None = None
+    # ..................................................................................................................
+    # 🔧 align: горизонтальное выравнивание содержимого ячейки
+    # ..................................................................................................................
+    @property
+    def align(self) -> str | None:
+        """
+        'left' | 'center' | 'right' | 'justify' | None
+
+        None означает «не задаём text-align, пусть решает CSS-тема».
+        """
+        return getattr(self, "f_align", None)
+
+    @align.setter
+    def align(self, value: str | None):
+        if value is None or value == "":
+            self._set_align_internal(None)
+            return
+
+        s = str(value).strip().lower()
+        # небольшой сахар
+        if s == "middle":
+            s = "center"
+
+        if s not in self._ALIGN_VALUES:
+            raise ValueError(
+                f"Invalid align '{value}'. "
+                f"Allowed: {sorted(self._ALIGN_VALUES)}"
+            )
+
+        self._set_align_internal(s)
+
+    def _set_align_internal(self, val: str | None):
+        # сохраняем логическое значение
+        self.f_align = val
+
+        # чистим старый text-align из styles (если был)
+        if hasattr(self, "styles") and isinstance(self.styles, list):
+            self.styles = [
+                frag for frag in self.styles
+                if not str(frag).strip().startswith("text-align:")
+            ]
+
+        # навешиваем новый стиль, если задан
+        if val:
+            # add_style сам добавит ';' при необходимости
+            self.add_style(f"text-align:{val};")
     # ..................................................................................................................
     # 🔔 внутренний хук уведомления панели
     # ..................................................................................................................
@@ -1018,6 +1069,117 @@ class TFlex_Td(TCompositeControl):
         # сигнал наверх панели/строке
         self._notify_owner_has_content()
     # ..................................................................................................................
+    # 📐 Геометрия колонки: top/left/right/bottom → padding-*
+    # ..................................................................................................................
+    @staticmethod
+    def _normalize_pad_offset(value) -> str:
+        """
+        Нормализация значений для логических отступов колонки (padding-оси).
+
+        Допустимо:
+            - 'auto'
+            - <int>        → трактуем как '<int>px'
+            - '<int>px'
+            - '<int>%'
+        """
+        if value is None:
+            raise ValueError("Offset cannot be None")
+
+        s = str(value).strip()
+        if not s:
+            raise ValueError("Offset cannot be empty")
+
+        if s.lower() == "auto":
+            return "auto"
+
+        # голое число → px
+        if re.fullmatch(r"-?\d+", s):
+            return f"{s}px"
+
+        if re.fullmatch(r"-?\d+px", s) or re.fullmatch(r"-?\d+%", s):
+            return s
+
+        raise ValueError(
+            f"Invalid offset value '{value}'. "
+            "Allowed: 'auto', <int>, '<int>px', '<int>%'."
+        )
+
+    @property
+    def top(self) -> str | None:
+        """Логический верхний отступ колонки → padding-top."""
+        return getattr(self, "f_pad_top", None)
+
+    @top.setter
+    def top(self, value):
+        if value is None:
+            self.f_pad_top = None
+        else:
+            self.f_pad_top = self._normalize_pad_offset(value)
+
+    @property
+    def bottom(self) -> str | None:
+        """Логический нижний отступ колонки → padding-bottom."""
+        return getattr(self, "f_pad_bottom", None)
+
+    @bottom.setter
+    def bottom(self, value):
+        if value is None:
+            self.f_pad_bottom = None
+        else:
+            self.f_pad_bottom = self._normalize_pad_offset(value)
+
+    @property
+    def left(self) -> str | None:
+        """Логический левый отступ колонки → padding-left."""
+        return getattr(self, "f_pad_left", None)
+
+    @left.setter
+    def left(self, value):
+        if value is None:
+            self.f_pad_left = None
+        else:
+            self.f_pad_left = self._normalize_pad_offset(value)
+
+    @property
+    def right(self) -> str | None:
+        """Логический правый отступ колонки → padding-right."""
+        return getattr(self, "f_pad_right", None)
+
+    @right.setter
+    def right(self, value):
+        if value is None:
+            self.f_pad_right = None
+        else:
+            self.f_pad_right = self._normalize_pad_offset(value)
+
+    @property
+    def box_style(self) -> dict[str, str]:
+        """
+        Геометрия колонки: логические top/left/right/bottom → padding-*.
+
+        Важно:
+          - базируемся на box_style родителя (width/height и т.д.),
+          - добавляем/перекрываем только padding-*.
+        """
+        # база: width/height/что там ещё собрал TSizeMixin / TCustomControl
+        base = dict(super().box_style)
+
+        top = getattr(self, "f_pad_top", None)
+        left = getattr(self, "f_pad_left", None)
+        right = getattr(self, "f_pad_right", None)
+        bottom = getattr(self, "f_pad_bottom", None)
+
+        if top is not None and top != "auto":
+            base["padding-top"] = top
+        if left is not None and left != "auto":
+            base["padding-left"] = left
+        if right is not None and right != "auto":
+            base["padding-right"] = right
+        if bottom is not None and bottom != "auto":
+            base["padding-bottom"] = bottom
+
+        return base
+    # ..................................................................................................................
     # 🎨 Render
     # ..................................................................................................................
     def _render(self):
@@ -1061,32 +1223,40 @@ class TFlex_Td(TCompositeControl):
 
     def _apply_fixed_width_flex(self) -> None:
         """
-        Если для ячейки явно задана ширина (width) или min-width (width_min),
+        Если для ячейки явно задана НЕ-AUTO ширина (width) или min-width (width_min),
         то:
           - снимаем flex-grow-1, чтобы колонка не растягивалась,
           - при наличии width задаём flex: 0 0 <width>.
+        Для width='auto' поведение не меняем.
         """
         width = getattr(self, "f_width", None)
         min_width = getattr(self, "f_min_width", None)
 
-        # если ни width, ни width_min не заданы — ничего не делаем
-        if width is None and min_width is None:
+        def is_fixed(v) -> bool:
+            if v is None:
+                return False
+            return str(v).strip().lower() != "auto"
+
+        # всегда чистим старые flex:... из styles (на случай прошлых прогонов)
+        current_styles = list(getattr(self, "styles", []))
+        current_styles = [
+            s for s in current_styles
+            if not s.strip().startswith("flex:")
+        ]
+        self.styles = current_styles
+
+        # если ни width, ни width_min не заданы ИЛИ они == 'auto' → ничего не делаем
+        if not (is_fixed(width) or is_fixed(min_width)):
             return
 
         # 1) убираем авто-растяжение
         if hasattr(self, "classes") and "flex-grow-1" in self.classes:
             self.classes.remove("flex-grow-1")
 
-        # 2) если есть явный width — задаём flex:0 0 <width>
-        if width is not None:
-            current_styles = list(getattr(self, "styles", []))
-            # убираем предыдущие flex: ...
-            filtered = [
-                s for s in current_styles
-                if not s.strip().startswith("flex:")
-            ]
-            filtered.append(f"flex:0 0 {width};")
-            self.styles = filtered
+        # 2) если есть явный НЕ-AUTO width — задаём flex:0 0 <width>
+        if is_fixed(width):
+            current_styles.append(f"flex:0 0 {width};")
+            self.styles = current_styles
     # ..................................................................................................................
     # 🔰 mark* methods
     # ..................................................................................................................
